@@ -2,341 +2,432 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from './supabaseClient'
 
 export default function App() {
-  const [transacciones, setTransacciones] = useState([])
+  const [periodo, setPeriodo] = useState('2026-10')
   const [cargando, setCargando] = useState(true)
 
-  // Formulario
-  const [descripcion, setDescripcion] = useState('')
-  const [monto, setMonto] = useState('')
-  const [tipo, setTipo] = useState('gasto') // 'gasto' o 'ingreso'
-  const [categoria, setCategoria] = useState('Comida')
-  const [pagadoPor, setPagadoPor] = useState('Catriel')
-  const [filtroPersona, setFiltroPersona] = useState('Todos')
+  // Datos de la base
+  const [ingresos, setIngresos] = useState([])
+  const [ahorros, setAhorros] = useState({ Lisandro: 0, Catriel: 0 })
+  const [gastosPropios, setGastosPropios] = useState([])
+  const [gastosCompartidos, setGastosCompartidos] = useState([])
+  const [tarjetas, setTarjetas] = useState([])
+  const [consumosTarjetas, setConsumosTarjetas] = useState([])
+  const [prestamos, setPrestamos] = useState([])
+  const [combustible, setCombustible] = useState([])
 
-  // Cargar transacciones e iniciar suscripción en tiempo real
+  // Formularios
+  const [nuevoGastoCompartido, setNuevoGastoCompartido] = useState({ concepto: '', monto: '' })
+  const [nuevoIngreso, setNuevoIngreso] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
+  const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
+  const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
+  const [nuevoConsumo, setNuevoConsumo] = useState({
+    realiza: 'Catriel',
+    tarjetaId: '',
+    descripcion: '',
+    montoCuota: '',
+    cuotaActual: 1,
+    totalCuotas: 1,
+    quienPaga: 'Catriel'
+  })
+  const [nuevoPrestamo, setNuevoPrestamo] = useState({
+    entidad: '',
+    montoCuota: '',
+    cuotaActual: 1,
+    totalCuotas: 12,
+    tipo: 'Compartido (Centro)'
+  })
+
   useEffect(() => {
-    fetchTransacciones()
-
+    cargarTodo()
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transacciones' },
-        () => {
-          fetchTransacciones()
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => cargarTodo())
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [periodo])
 
-  const fetchTransacciones = async () => {
+  const cargarTodo = async () => {
+    setCargando(true)
     try {
-      const { data, error } = await supabase
-        .from('transacciones')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const { data: gComp } = await supabase.from('gastos_compartidos').select('*')
+      setGastosCompartidos(gComp || [])
 
-      if (error) console.error('Error al cargar:', error)
-      else setTransacciones(data || [])
-    } catch (err) {
-      console.error(err)
+      const { data: ing } = await supabase.from('ingresos').select('*')
+      setIngresos(ing || [])
+
+      const { data: gProp } = await supabase.from('gastos_propios').select('*')
+      setGastosPropios(gProp || [])
+
+      const { data: tarj } = await supabase.from('tarjetas').select('*')
+      setTarjetas(tarj || [])
+
+      const { data: cons } = await supabase.from('consumos_tarjetas').select('*')
+      setConsumosTarjetas(cons || [])
+
+      const { data: prest } = await supabase.from('prestamos').select('*')
+      setPrestamos(prest || [])
+
+      const { data: comb } = await supabase.from('combustible').select('*')
+      setCombustible(comb || [])
+
+      const { data: aho } = await supabase.from('ahorros').select('*')
+      if (aho) {
+        const lis = aho.find(a => a.persona === 'Lisandro')?.monto || 0
+        const cat = aho.find(a => a.persona === 'Catriel')?.monto || 0
+        setAhorros({ Lisandro: lis, Catriel: cat })
+      }
+    } catch (e) {
+      console.error(e)
     } finally {
       setCargando(false)
     }
   }
 
-  const agregarTransaccion = async (e) => {
+  // Operaciones DB
+  const agregarGastoCompartido = async (e) => {
     e.preventDefault()
-    if (!descripcion || !monto) return
-
-    const nueva = {
-      descripcion,
-      monto: parseFloat(monto),
-      tipo,
-      categoria,
-      pagado_por: pagadoPor,
-      fecha: new Date().toISOString()
-    }
-
-    const { error } = await supabase.from('transacciones').insert([nueva])
-
-    if (error) {
-      alert('Error al guardar la transacción')
-      console.error(error)
-    } else {
-      setDescripcion('')
-      setMonto('')
-    }
+    if (!nuevoGastoCompartido.concepto || !nuevoGastoCompartido.monto) return
+    await supabase.from('gastos_compartidos').insert([{
+      concepto: nuevoGastoCompartido.concepto,
+      monto: parseFloat(nuevoGastoCompartido.monto),
+      periodo
+    }])
+    setNuevoGastoCompartido({ concepto: '', monto: '' })
+    cargarTodo()
   }
 
-  const borrarTransaccion = async (id) => {
-    const { error } = await supabase.from('transacciones').delete().eq('id', id)
-    if (error) console.error('Error al borrar:', error)
+  const borrarGastoCompartido = async (id) => {
+    await supabase.from('gastos_compartidos').delete().eq('id', id)
+    cargarTodo()
   }
 
-  // Cálculos Financieros
-  const totalIngresos = transacciones
-    .filter((t) => t.tipo === 'ingreso')
-    .reduce((acc, t) => acc + Number(t.monto), 0)
+  const guardarAhorro = async (persona, monto) => {
+    await supabase.from('ahorros').upsert([{ persona, monto: parseFloat(monto) || 0 }], { onConflict: 'persona' })
+    cargarTodo()
+  }
 
-  const totalGastos = transacciones
-    .filter((t) => t.tipo === 'gasto')
-    .reduce((acc, t) => acc + Number(t.monto), 0)
+  const agregarTarjeta = async (e) => {
+    e.preventDefault()
+    if (!nuevaTarjeta.nombre) return
+    await supabase.from('tarjetas').insert([nuevaTarjeta])
+    setNuevaTarjeta({ persona: 'Catriel', nombre: '' })
+    cargarTodo()
+  }
 
-  const gastoCatriel = transacciones
-    .filter((t) => t.tipo === 'gasto' && t.pagado_por === 'Catriel')
-    .reduce((acc, t) => acc + Number(t.monto), 0)
+  const agregarConsumo = async (e) => {
+    e.preventDefault()
+    if (!nuevoConsumo.tarjetaId || !nuevoConsumo.montoCuota) return
+    await supabase.from('consumos_tarjetas').insert([{
+      tarjeta_id: nuevoConsumo.tarjetaId,
+      realiza: nuevoConsumo.realiza,
+      descripcion: nuevoConsumo.descripcion,
+      monto_cuota: parseFloat(nuevoConsumo.montoCuota),
+      cuota_actual: parseInt(nuevoConsumo.cuotaActual),
+      total_cuotas: parseInt(nuevoConsumo.totalCuotas),
+      quien_paga: nuevoConsumo.quienPaga,
+      periodo
+    }])
+    setNuevoConsumo({ ...nuevoConsumo, descripcion: '', montoCuota: '' })
+    cargarTodo()
+  }
 
-  const gastoLisandro = transacciones
-    .filter((t) => t.tipo === 'gasto' && t.pagado_por === 'Lisandro')
-    .reduce((acc, t) => acc + Number(t.monto), 0)
+  const agregarPrestamo = async (e) => {
+    e.preventDefault()
+    if (!nuevoPrestamo.entidad || !nuevoPrestamo.montoCuota) return
+    await supabase.from('prestamos').insert([{
+      entidad: nuevoPrestamo.entidad,
+      monto_cuota: parseFloat(nuevoPrestamo.montoCuota),
+      cuota_actual: parseInt(nuevoPrestamo.cuotaActual),
+      total_cuotas: parseInt(nuevoPrestamo.totalCuotas),
+      tipo: nuevoPrestamo.tipo,
+      periodo
+    }])
+    setNuevoPrestamo({ ...nuevoPrestamo, entidad: '', montoCuota: '' })
+    cargarTodo()
+  }
 
-  // Balance entre ambos (asumiendo gastos compartidos al 50%)
-  const diferencia = (gastoCatriel - gastoLisandro) / 2
+  // Cálculos
+  const totalCompartidos = gastosCompartidos.reduce((acc, item) => acc + Number(item.monto), 0)
+  const mitadCompartidos = totalCompartidos / 2
 
-  const transaccionesFiltradas = transacciones.filter((t) => {
-    if (filtroPersona === 'Todos') return true
-    return t.pagado_por === filtroPersona
-  })
+  const ingresosLisandro = ingresos.filter(i => i.persona === 'Lisandro').reduce((acc, i) => acc + Number(i.monto), 0)
+  const ingresosCatriel = ingresos.filter(i => i.persona === 'Catriel').reduce((acc, i) => acc + Number(i.monto), 0)
+
+  const gastosPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro').reduce((acc, g) => acc + Number(g.monto), 0)
+  const gastosPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel').reduce((acc, g) => acc + Number(g.monto), 0)
+
+  const combustibleLisandro = combustible.filter(c => c.persona === 'Lisandro').reduce((acc, c) => acc + Number(c.monto), 0)
+  const combustibleCatriel = combustible.filter(c => c.persona === 'Catriel').reduce((acc, c) => acc + Number(c.monto), 0)
+
+  // Totales Tarjetas
+  const tarjLisandro = tarjetas.filter(t => t.persona === 'Lisandro')
+  const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
+
+  const totalTarjLisandro = consumosTarjetas
+    .filter(c => tarjLisandro.some(t => t.id === c.tarjeta_id))
+    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  const totalTarjCatriel = consumosTarjetas
+    .filter(c => tarjCatriel.some(t => t.id === c.tarjeta_id))
+    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  const tarjCompLisandro = consumosTarjetas
+    .filter(c => c.quien_paga === 'Compartido' && tarjLisandro.some(t => t.id === c.tarjeta_id))
+    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  const tarjCompCatriel = consumosTarjetas
+    .filter(c => c.quien_paga === 'Compartido' && tarjCatriel.some(t => t.id === c.tarjeta_id))
+    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  const mitadTarjComp = (tarjCompLisandro + tarjCompCatriel) / 2
+
+  const dispLisandro = ingresosLisandro - (mitadCompartidos + gastosPropLisandro + ahorros.Lisandro)
+  const dispCatriel = ingresosCatriel - (mitadCompartidos + gastosPropCatriel + ahorros.Catriel)
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1>Finanzas del Hogar 🏠</h1>
-        <p>Catriel & Lisandro • Sincronización en tiempo real</p>
-      </header>
-
-      {/* Tarjetas de Resumen */}
-      <div style={styles.gridCards}>
-        <div style={{ ...styles.card, borderColor: '#22c55e' }}>
-          <h3>Total Ingresos</h3>
-          <p style={{ ...styles.monto, color: '#22c55e' }}>
-            ${totalIngresos.toLocaleString()}
-          </p>
+    <div style={styles.appContainer}>
+      {/* Header */}
+      <div style={styles.topHeader}>
+        <div>
+          <h1 style={styles.title}>🏠 Dashboard Financiero del Hogar</h1>
+          <p style={styles.subtitle}>Vista Dividida: Lisandro (Izq) | Compartido (Centro) | Catriel (Der)</p>
         </div>
-
-        <div style={{ ...styles.card, borderColor: '#ef4444' }}>
-          <h3>Total Gastos</h3>
-          <p style={{ ...styles.monto, color: '#ef4444' }}>
-            ${totalGastos.toLocaleString()}
-          </p>
-        </div>
-
-        <div style={{ ...styles.card, borderColor: '#3b82f6' }}>
-          <h3>Balance Cuentas</h3>
-          {diferencia > 0 ? (
-            <p style={{ color: '#3b82f6', fontWeight: 'bold' }}>
-              Lisandro le debe a Catriel: <strong>${Math.abs(diferencia).toLocaleString()}</strong>
-            </p>
-          ) : diferencia < 0 ? (
-            <p style={{ color: '#3b82f6', fontWeight: 'bold' }}>
-              Catriel le debe a Lisandro: <strong>${Math.abs(diferencia).toLocaleString()}</strong>
-            </p>
-          ) : (
-            <p style={{ color: '#6b7280' }}>Están a mano 👍</p>
-          )}
+        <div style={styles.periodSelector}>
+          <span>📅 Período:</span>
+          <input
+            type="month"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value)}
+            style={styles.inputMonth}
+          />
         </div>
       </div>
 
-      {/* Formulario de Carga */}
-      <section style={styles.section}>
-        <h2>Cargar Nuevo Movimiento</h2>
-        <form onSubmit={agregarTransaccion} style={styles.form}>
-          <input
-            type="text"
-            placeholder="Descripción (ej. Compras Coto)"
-            value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder="Monto ($)"
-            value={monto}
-            onChange={(e) => setMonto(e.target.value)}
-            style={styles.input}
-            required
-          />
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)} style={styles.select}>
-            <option value="gasto">Gasto</option>
-            <option value="ingreso">Ingreso</option>
-          </select>
-          <select value={categoria} onChange={(e) => setCategoria(e.target.value)} style={styles.select}>
-            <option value="Comida">Comida / Supermercado</option>
-            <option value="Servicios">Servicios (Luz, Gas, Internet)</option>
-            <option value="Alquiler">Alquiler</option>
-            <option value="Salidas">Salidas / Entretenimiento</option>
+      {/* Grid de 3 Columnas Principal */}
+      <div style={styles.mainGrid}>
+        
+        {/* COLUMNA LISANDRO (AZUL) */}
+        <div style={styles.columnBlue}>
+          <div style={styles.headerBlue}>
+            <h2>👤 LISANDRO</h2>
+          </div>
 
-            <option value="Varios">Varios</option>
-          </select>
-          <select value={pagadoPor} onChange={(e) => setPagadoPor(e.target.value)} style={styles.select}>
-            <option value="Catriel">Catriel</option>
-            <option value="Lisandro">Lisandro</option>
-          </select>
-          <button type="submit" style={styles.button}>Añadir Movimiento</button>
-        </form>
-      </section>
+          <div style={styles.subGrid}>
+            <div style={styles.boxLightBlue}>
+              <span style={styles.boxTitle}>INGRESOS</span>
+              <p style={styles.totText}>Tot: ${ingresosLisandro.toLocaleString()}</p>
+            </div>
+            <div style={styles.boxLightBlue}>
+              <span style={styles.boxTitle}>🐷 AHORRO</span>
+              <p style={{ ...styles.montoText, color: '#0284c7' }}>${ahorros.Lisandro.toLocaleString()}</p>
+              <input
+                type="number"
+                placeholder="Editar $"
+                style={styles.inputMini}
+                onBlur={(e) => guardarAhorro('Lisandro', e.target.value)}
+              />
+            </div>
+          </div>
 
-      {/* Lista de Movimientos */}
-      <section style={styles.section}>
-        <div style={styles.listHeader}>
-          <h2>Historial de Movimientos</h2>
-          <div>
-            <label style={{ marginRight: '8px' }}>Filtrar por:</label>
-            <select
-              value={filtroPersona}
-              onChange={(e) => setFiltroPersona(e.target.value)}
-              style={styles.selectSmall}
-            >
-              <option value="Todos">Todos</option>
-              <option value="Catriel">Catriel</option>
-              <option value="Lisandro">Lisandro</option>
-            </select>
+          <div style={{ ...styles.boxLightBlue, marginTop: '12px' }}>
+            <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO</span>
+            <p style={{ textAlign: 'right', marginTop: '10px', fontSize: '13px' }}>
+              Subtotal Propio: <strong>${gastosPropLisandro.toLocaleString()}</strong>
+            </p>
+          </div>
+
+          <div style={styles.cardGroupTitle}>💳 Tarjetas de Lisandro</div>
+          {tarjLisandro.length === 0 ? (
+            <p style={styles.emptyText}>No hay tarjetas creadas</p>
+          ) : (
+            tarjLisandro.map(t => (
+              <div key={t.id} style={styles.cardItemBlue}>
+                <span>💳 <strong>{t.nombre}</strong></span>
+                <p style={{ fontSize: '12px', margin: '4px 0 0 0', color: '#64748b' }}>
+                  Total Resumen Mes: <strong>${totalTarjLisandro.toLocaleString()}</strong>
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* COLUMNA COMPARTIDO (AMARILLO) */}
+        <div style={styles.columnYellow}>
+          <div style={styles.headerYellow}>
+            <h2>🤝 GASTOS COMPARTIDOS (50 / 50)</h2>
+          </div>
+
+          <table style={styles.tableYellow}>
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th style={{ textAlign: 'right' }}>Monto Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gastosCompartidos.map(g => (
+                <tr key={g.id}>
+                  <td>{g.concepto}</td>
+                  <td style={{ textAlign: 'right', color: '#b45309', fontWeight: 'bold' }}>
+                    ${Number(g.monto).toLocaleString()}
+                    <button onClick={() => borrarGastoCompartido(g.id)} style={styles.btnIcon}>🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={styles.summaryYellowBox}>
+            <div style={styles.rowFlex}>
+              <span>Total Compartidos:</span>
+              <strong>${totalCompartidos.toLocaleString()}</strong>
+            </div>
+            <div style={{ ...styles.rowFlex, color: '#b45309', marginTop: '4px' }}>
+              <span>Corresponde a CADA UNO (50%):</span>
+              <strong>${mitadCompartidos.toLocaleString()}</strong>
+            </div>
+          </div>
+
+          <form onSubmit={agregarGastoCompartido} style={{ ...styles.rowFlex, gap: '6px', marginTop: '12px' }}>
+            <input
+              type="text"
+              placeholder="Ej: Alquiler"
+              value={nuevoGastoCompartido.concepto}
+              onChange={e => setNuevoGastoCompartido({ ...nuevoGastoCompartido, concepto: e.target.value })}
+              style={styles.inputFlex}
+            />
+            <input
+              type="number"
+              placeholder="$ Total"
+              value={nuevoGastoCompartido.monto}
+              onChange={e => setNuevoGastoCompartido({ ...nuevoGastoCompartido, monto: e.target.value })}
+              style={{ ...styles.inputFlex, maxWidth: '90px' }}
+            />
+            <button type="submit" style={styles.btnOrange}>+</button>
+          </form>
+
+          {/* Tarjetas Compartidas */}
+          <div style={{ marginTop: '20px', borderTop: '1px solid #fef08a', paddingTop: '15px' }}>
+            <h4 style={{ margin: '0 0 10px 0' }}>💳 Gastos Tarjetas Compartidos</h4>
+            <div style={styles.infoRowLightBlue}>
+              <span>En tarjetas de Lisandro:</span>
+              <strong>${tarjCompLisandro.toLocaleString()}</strong>
+            </div>
+            <div style={{ ...styles.infoRowLightGreen, marginTop: '6px' }}>
+              <span>En tarjetas de Catriel:</span>
+              <strong>${tarjCompCatriel.toLocaleString()}</strong>
+            </div>
+            <div style={styles.infoRowLightYellow}>
+              <span>Corresponde pagar a CADA UNO (50%):</span>
+              <strong>${mitadTarjComp.toLocaleString()}</strong>
+            </div>
+            <div style={styles.statusBoxOk}>
+              ⚖️ LIQUIDACIÓN DE TARJETAS COMPARTIDAS<br />
+              <strong>¡Las tarjetas compartidas están 100% al día!</strong>
+            </div>
           </div>
         </div>
 
-        {cargando ? (
-          <p>Cargando datos...</p>
-        ) : transaccionesFiltradas.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>No hay movimientos registrados.</p>
-        ) : (
-          <div style={styles.tablaContainer}>
-            <table style={styles.tabla}>
-              <thead>
-                <tr>
-                  <th>Descripción</th>
-                  <th>Categoría</th>
-                  <th>Persona</th>
-                  <th>Monto</th>
-                  <th>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transaccionesFiltradas.map((t) => (
-                  <tr key={t.id}>
-                    <td>{t.descripcion}</td>
-                    <td><span style={styles.tag}>{t.categoria}</span></td>
-                    <td><strong>{t.pagado_por}</strong></td>
-                    <td style={{ color: t.tipo === 'ingreso' ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
-                      {t.tipo === 'ingreso' ? '+' : '-'}${Number(t.monto).toLocaleString()}
-                    </td>
-                    <td>
-                      <button onClick={() => borrarTransaccion(t.id)} style={styles.btnDelete}>
-                        🗑️
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* COLUMNA CATRIEL (VERDE) */}
+        <div style={styles.columnGreen}>
+          <div style={styles.headerGreen}>
+            <h2>👤 CATRIEL</h2>
           </div>
-        )}
-      </section>
-    </div>
-  )
-}
 
-const styles = {
-  container: {
-    maxWidth: '900px',
-    margin: '0 auto',
-    padding: '20px',
-    fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-    color: '#1f2937',
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '30px',
-  },
-  gridCards: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px',
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-    borderLeft: '6px solid #ccc',
-  },
-  monto: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    margin: '10px 0 0 0',
-  },
-  section: {
-    backgroundColor: '#ffffff',
-    padding: '24px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-    marginBottom: '30px',
-  },
-  form: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: '12px',
-    marginTop: '15px',
-  },
-  input: {
-    padding: '10px 14px',
-    borderRadius: '6px',
-    border: '1px solid #d1d5db',
-    fontSize: '14px',
-  },
-  select: {
-    padding: '10px 14px',
-    borderRadius: '6px',
-    border: '1px solid #d1d5db',
-    fontSize: '14px',
-    backgroundColor: '#fff',
-  },
-  selectSmall: {
-    padding: '6px 10px',
-    borderRadius: '6px',
-    border: '1px solid #d1d5db',
-  },
-  button: {
-    gridColumn: '1 / -1',
-    padding: '12px',
-    backgroundColor: '#2563eb',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-  },
-  listHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '15px',
-  },
-  tablaContainer: {
-    overflowX: 'auto',
-  },
-  tabla: {
-    width: '100%',
-    borderCollapse: 'collapse',
-    textAlign: 'left',
-  },
-  tag: {
-    backgroundColor: '#f3f4f6',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-  },
-  btnDelete: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '16px',
-  },
-}
+          <div style={styles.subGrid}>
+            <div style={styles.boxLightGreen}>
+              <span style={styles.boxTitle}>💵 INGRESOS</span>
+              <p style={styles.totText}>Tot: ${ingresosCatriel.toLocaleString()}</p>
+            </div>
+            <div style={styles.boxLightGreen}>
+              <span style={styles.boxTitle}>🐷 AHORRO</span>
+              <p style={{ ...styles.montoText, color: '#16a34a' }}>${ahorros.Catriel.toLocaleString()}</p>
+              <input
+                type="number"
+                placeholder="Editar $"
+                style={styles.inputMini}
+                onBlur={(e) => guardarAhorro('Catriel', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ ...styles.boxLightGreen, marginTop: '12px' }}>
+            <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL</span>
+            <p style={{ textAlign: 'right', marginTop: '10px', fontSize: '13px' }}>
+              Subtotal Propio: <strong>${gastosPropCatriel.toLocaleString()}</strong>
+            </p>
+          </div>
+
+          <div style={styles.cardGroupTitleGreen}>💳 Tarjetas de Catriel</div>
+          {tarjCatriel.length === 0 ? (
+            <p style={styles.emptyText}>No hay tarjetas creadas</p>
+          ) : (
+            tarjCatriel.map(t => (
+              <div key={t.id} style={styles.cardItemGreen}>
+                <span>💳 <strong>{t.nombre}</strong></span>
+                <p style={{ fontSize: '12px', margin: '4px 0 0 0', color: '#64748b' }}>
+                  Total Resumen Mes: <strong>${totalTarjCatriel.toLocaleString()}</strong>
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+
+      </div>
+
+      {/* PANELES INFERIORES */}
+      <div style={styles.bottomSection}>
+        
+        {/* Cargo Justo y Combustible */}
+        <div style={styles.grid2Col}>
+          <div style={styles.cardWhite}>
+            <h4>📊 Cargo Justo de Tarjetas (Solo Gastos Propios)</h4>
+            <div style={styles.rowFlex}>
+              <div style={styles.boxMiniBlue}>
+                <span style={{ fontSize: '12px' }}>LISANDRO (PROPIO)</span>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0' }}>$0</p>
+                <small style={{ color: '#94a3b8' }}>Sin consumos propios</small>
+              </div>
+              <div style={styles.boxMiniGreen}>
+                <span style={{ fontSize: '12px' }}>CATRIEL (PROPIO)</span>
+                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#16a34a', margin: '4px 0' }}>$0</p>
+                <small style={{ color: '#94a3b8' }}>Sin consumos propios</small>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ ...styles.cardWhite, border: '1px solid #fdba74' }}>
+            <h4 style={{ color: '#c2410c' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
+            <div style={styles.rowFlex}>
+              <div style={styles.boxMiniOrange}>
+                <span>Combustible Lisandro:</span>
+                <p style={{ color: '#c2410c', fontWeight: 'bold', margin: '4px 0' }}>${combustibleLisandro.toLocaleString()}</p>
+              </div>
+              <div style={styles.boxMiniOrange}>
+                <span>Combustible Catriel:</span>
+                <p style={{ color: '#c2410c', fontWeight: 'bold', margin: '4px 0' }}>${combustibleCatriel.toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* BALANCE NETO DEL MES */}
+        <div style={styles.balanceNetoCard}>
+          <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>💰 BALANCE NETO DEL MES</h3>
+          <div style={styles.rowFlex}>
+            <div style={styles.balanceColBlue}>
+              <h4 style={{ color: '#0284c7', margin: '0 0 8px 0' }}>LISANDRO</h4>
+              <p>Ingresos: <strong>${ingresosLisandro.toLocaleString()}</strong></p>
+              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p>
+              <p>Ahorro: <strong>${ahorros.Lisandro.toLocaleString()}</strong></p>
+              <hr />
+              <p style={{ fontSize: '15px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
+            </div>
+
+            <div style={styles.balanceColGreen}>
+              <h4 style={{ color: '#16a34a', margin: '0 0 8px 0' }}>CATRIEL</h4>
+              <p>Ingresos: <strong>${ingresosCatriel.toLocaleString()}</strong></p>
+              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p
