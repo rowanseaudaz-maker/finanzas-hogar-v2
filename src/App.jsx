@@ -5,7 +5,7 @@ export default function App() {
   const [periodo, setPeriodo] = useState('2026-10')
   const [cargando, setCargando] = useState(true)
 
-  // Datos de Supabase
+  // Datos
   const [ingresos, setIngresos] = useState([])
   const [ahorros, setAhorros] = useState({ Lisandro: 0, Catriel: 0 })
   const [gastosPropios, setGastosPropios] = useState([])
@@ -67,7 +67,7 @@ export default function App() {
     }
   }
 
-  // Guardados en Supabase
+  // Guardados
   const agregarGastoComp = async (e) => {
     e.preventDefault()
     if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
@@ -166,7 +166,6 @@ export default function App() {
   return (
     <div style={styles.appWrapper}>
       <div style={styles.appContainer}>
-        {/* Encabezado */}
         <div style={styles.topHeader}>
           <div>
             <h1 style={styles.title}>🏠 Dashboard Financiero del Hogar</h1>
@@ -185,13 +184,11 @@ export default function App() {
 
         {/* Grid 3 Columnas */}
         <div style={styles.mainGrid}>
-          
           {/* LISANDRO */}
           <div style={styles.columnBlue}>
             <div style={styles.headerBlue}>
               <h2>👤 LISANDRO</h2>
             </div>
-
             <div style={styles.subGrid}>
               <div style={styles.boxLightBlue}>
                 <span style={styles.boxTitle}>INGRESOS</span>
@@ -208,14 +205,12 @@ export default function App() {
                 />
               </div>
             </div>
-
             <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
               <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO</span>
               <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
                 Subtotal Propio: <strong>${gastosPropLisandro.toLocaleString()}</strong>
               </p>
             </div>
-
             <div style={styles.cardGroupTitle}>💳 Tarjetas de Lisandro</div>
             {tarjLisandro.length === 0 ? (
               <p style={styles.emptyText}>Sin tarjetas</p>
@@ -236,7 +231,6 @@ export default function App() {
             <div style={styles.headerYellow}>
               <h2>🤝 GASTOS COMPARTIDOS (50 / 50)</h2>
             </div>
-
             <table style={styles.tableYellow}>
               <thead>
                 <tr>
@@ -256,7 +250,6 @@ export default function App() {
                 ))}
               </tbody>
             </table>
-
             <div style={styles.summaryYellowBox}>
               <div style={styles.rowFlex}>
                 <span>Total Compartidos:</span>
@@ -267,7 +260,6 @@ export default function App() {
                 <strong>${mitadCompartidos.toLocaleString()}</strong>
               </div>
             </div>
-
             <form onSubmit={agregarGastoComp} style={{ ...styles.rowFlex, gap: '4px', marginTop: '8px' }}>
               <input
                 type="text"
@@ -292,7 +284,6 @@ export default function App() {
             <div style={styles.headerGreen}>
               <h2>👤 CATRIEL</h2>
             </div>
-
             <div style={styles.subGrid}>
               <div style={styles.boxLightGreen}>
                 <span style={styles.boxTitle}>💵 INGRESOS</span>
@@ -309,14 +300,12 @@ export default function App() {
                 />
               </div>
             </div>
-
             <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
               <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL</span>
               <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
                 Subtotal Propio: <strong>${gastosPropCatriel.toLocaleString()}</strong>
               </p>
             </div>
-
             <div style={styles.cardGroupTitleGreen}>💳 Tarjetas de Catriel</div>
             {tarjCatriel.length === 0 ? (
               <p style={styles.emptyText}>Sin tarjetas</p>
@@ -331,12 +320,10 @@ export default function App() {
               ))
             )}
           </div>
-
         </div>
 
         {/* Inferiores */}
         <div style={styles.bottomSection}>
-          
           <div style={styles.grid2Col}>
             <div style={{ ...styles.cardWhite, border: '1px solid #fdba74' }}>
               <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
@@ -406,7 +393,6 @@ export default function App() {
               <button type="submit" style={styles.btnBlueFull}>+ Crear Tarjeta</button>
             </form>
           </div>
-
         </div>
       </div>
     </div>
