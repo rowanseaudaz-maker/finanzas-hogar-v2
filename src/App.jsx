@@ -272,7 +272,7 @@ export default function App() {
   const totalTarjComp = tarjCompLisandro + tarjCompCatriel
   const mitadTarjComp = totalTarjComp / 2
 
-  // CÁLCULO DE LIQUIDACIÓN DE TARJETAS COMPARTIDAS (QUIÉN LE DEBE A QUIÉN)
+  // CÁLCULO DE LIQUIDACIÓN DE TARJETAS COMPARTIDAS
   const diffTarjComp = tarjCompLisandro - tarjCompCatriel
   const debeMonto = Math.abs(diffTarjComp) / 2
   let quienDebeTexto = '¡Las tarjetas compartidas están 100% al día!'
@@ -282,7 +282,7 @@ export default function App() {
     quienDebeTexto = `Lisandro le debe $${debeMonto.toLocaleString()} a Catriel`
   }
 
-  // CÁLCULO DE GASTOS TOTALES Y DISPONIBLE FINAL EN BALANCE NETO
+  // CÁLCULO DE GASTOS TOTALES Y DISPONIBLE FINAL
   const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio + totalCombLisandro
   const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio + totalCombCatriel
 
@@ -603,10 +603,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* CARGO JUSTO Y MONTO DE FONDOS A SEPARAR POR TARJETA (MUESTRA AMBOS CÁLCULOS) */}
+            {/* CÁLCULO REAL DE FONDOS DEL BOLSILLO A SEPARAR POR TARJETA */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
-                📊 Cargo Justo y Fondos a Separar por Tarjeta
+                🏦 Plata Real a Separar del Bolsillo por Tarjeta
               </h4>
               <div style={styles.grid2Col}>
                 
@@ -621,19 +621,22 @@ export default function App() {
                     tarjLisandro.map(t => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const propioTarj = consumosTarjeta.filter(c => c.quien_paga === 'Lisandro').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const compTarj = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const aportaCatriel = compTarj / 2
+                      
+                      // Si Catriel le debe netamente a Lisandro, ese neto atenúa el desembolso de esta tarjeta
+                      const compensacionNetoCatriel = (diffTarjComp > 0) ? debeMonto : 0
+                      const delBolsilloLisandro = Math.max(0, totalResumen - compensacionNetoCatriel)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
                           <div style={styles.rowFlexCargo}>
                             <span style={{ fontWeight: 'bold' }}>{t.nombre}:</span>
-                            <strong style={{ color: '#0284c7' }}>${totalResumen.toLocaleString()} (Total Banco)</strong>
+                            <strong>${totalResumen.toLocaleString()} (Total Banco)</strong>
                           </div>
-                          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                            • Lisandro pone: ${ (propioTarj + (compTarj / 2)).toLocaleString() } <br/>
-                            • Catriel le aporta: ${ aportaCatriel.toLocaleString() }
+                          <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px', fontWeight: 'bold' }}>
+                            👉 Lisandro pone del bolsillo: ${delBolsilloLisandro.toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>
+                            (Recibe compensación neta de Catriel: ${compensacionNetoCatriel.toLocaleString()})
                           </div>
                         </div>
                       )
@@ -652,19 +655,22 @@ export default function App() {
                     tarjCatriel.map(t => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const propioTarj = consumosTarjeta.filter(c => c.quien_paga === 'Catriel').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const compTarj = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const aportaLisandro = compTarj / 2
+                      
+                      // Si Lisandro le debe netamente a Catriel, ese neto atenúa el desembolso de esta tarjeta
+                      const compensacionNetoLisandro = (diffTarjComp < 0) ? debeMonto : 0
+                      const delBolsilloCatriel = Math.max(0, totalResumen - compensacionNetoLisandro)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
                           <div style={styles.rowFlexCargo}>
                             <span style={{ fontWeight: 'bold' }}>{t.nombre}:</span>
-                            <strong style={{ color: '#16a34a' }}>${totalResumen.toLocaleString()} (Total Banco)</strong>
+                            <strong>${totalResumen.toLocaleString()} (Total Banco)</strong>
                           </div>
-                          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                            • Catriel pone: ${ (propioTarj + (compTarj / 2)).toLocaleString() } <br/>
-                            • Lisandro le aporta: ${ aportaLisandro.toLocaleString() }
+                          <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '2px', fontWeight: 'bold' }}>
+                            👉 Catriel pone del bolsillo: ${delBolsilloCatriel.toLocaleString()}
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#64748b' }}>
+                            (Recibe compensación neta de Lisandro: ${compensacionNetoLisandro.toLocaleString()})
                           </div>
                         </div>
                       )
