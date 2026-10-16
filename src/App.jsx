@@ -17,8 +17,6 @@ export default function App() {
 
   // Formularios
   const [nuevoGastoCompartido, setNuevoGastoCompartido] = useState({ concepto: '', monto: '' })
-  const [nuevoIngreso, setNuevoIngreso] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
-  const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
   const [nuevoConsumo, setNuevoConsumo] = useState({
     realiza: 'Catriel',
@@ -543,20 +541,52 @@ const styles = {
   inputMonth: { border: 'none', background: 'transparent', marginLeft: '6px', fontWeight: 'bold' },
   mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '16px' },
   
-  // Columna Azul
   columnBlue: { backgroundColor: '#e0f2fe', borderRadius: '16px', padding: '16px', border: '1px solid #38bdf8' },
   headerBlue: { color: '#0369a1', marginBottom: '12px' },
   subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
   boxLightBlue: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #bae6fd' },
   cardItemBlue: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #bae6fd' },
 
-  // Columna Amarilla
   columnYellow: { backgroundColor: '#fef9c3', borderRadius: '16px', padding: '16px', border: '1px solid #fde047' },
   headerYellow: { color: '#a16207', marginBottom: '12px' },
   tableYellow: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
   summaryYellowBox: { backgroundColor: '#fef08a', padding: '12px', borderRadius: '8px', marginTop: '12px' },
 
-  // Columna Verde
   columnGreen: { backgroundColor: '#dcfce7', borderRadius: '16px', padding: '16px', border: '1px solid #4ade80' },
   headerGreen: { color: '#15803d', marginBottom: '12px' },
-  boxLightGreen: { backgroundColor: '#fff', padding: '12px }
+  boxLightGreen: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #bbf7d0' },
+  cardItemGreen: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #bbf7d0' },
+
+  boxTitle: { fontSize: '11px', fontWeight: 'bold', color: '#64748b' },
+  totText: { fontSize: '13px', fontWeight: 'bold', margin: '6px 0 0 0' },
+  montoText: { fontSize: '18px', fontWeight: 'bold', margin: '2px 0' },
+  inputMini: { width: '100%', padding: '4px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd5e1' },
+  cardGroupTitle: { fontSize: '13px', fontWeight: 'bold', color: '#0369a1', marginTop: '16px' },
+  cardGroupTitleGreen: { fontSize: '13px', fontWeight: 'bold', color: '#15803d', marginTop: '16px' },
+  emptyText: { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' },
+  rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '6px' },
+  inputFlex: { padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' },
+  btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+
+  infoRowLightBlue: { backgroundColor: '#e0f2fe', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' },
+  infoRowLightGreen: { backgroundColor: '#dcfce7', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' },
+  infoRowLightYellow: { backgroundColor: '#fef08a', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '6px' },
+  statusBoxOk: { backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', textAlign: 'center', fontSize: '12px', marginTop: '10px', border: '1px solid #e2e8f0' },
+
+  bottomSection: { marginTop: '20px' },
+  grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' },
+  cardWhite: { backgroundColor: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' },
+  boxMiniBlue: { backgroundColor: '#e0f2fe', padding: '10px', borderRadius: '8px', width: '48%' },
+  boxMiniGreen: { backgroundColor: '#dcfce7', padding: '10px', borderRadius: '8px', width: '48%' },
+  boxMiniOrange: { backgroundColor: '#ffedd5', padding: '10px', borderRadius: '8px', width: '48%' },
+
+  balanceNetoCard: { backgroundColor: '#fff', padding: '20px', borderRadius: '16px', border: '2px solid #0f172a', marginTop: '20px' },
+  balanceColBlue: { backgroundColor: '#f0f9ff', padding: '14px', borderRadius: '10px', width: '48%' },
+  balanceColGreen: { backgroundColor: '#f0fdf4', padding: '14px', borderRadius: '10px', width: '48%' },
+
+  selectStyle: { padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '13px' },
+  btnPurple: { backgroundColor: '#9333ea', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  btnBlue: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+}
