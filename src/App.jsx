@@ -13,7 +13,7 @@ export default function App() {
   const [tarjetas, setTarjetas] = useState([])
   const [consumosTarjetas, setConsumosTarjetas] = useState([])
   const [combustibleManual, setCombustibleManual] = useState([])
-  const [pagosEstado, setPagosEstado] = useState({}) // Formato: tipo_id_persona_periodo -> boolean
+  const [pagosEstado, setPagosEstado] = useState({})
 
   // FORMULARIOS
   const [nuevoGastoComp, setNuevoGastoComp] = useState({ concepto: '', monto: '' })
@@ -247,6 +247,17 @@ export default function App() {
   const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
   const tarjetasParaForm = tarjetas.filter(t => t.persona === nuevoConsumo.realiza)
 
+  // Consumos Tarjetas Propios
+  const consumosLisandroPropio = consumosActivosMes.filter(c => {
+    const perteneceALisandro = tarjLisandro.some(t => t.id === c.tarjeta_id)
+    return perteneceALisandro && c.quien_paga === 'Lisandro'
+  }).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  const consumosCatrielPropio = consumosActivosMes.filter(c => {
+    const perteneceACatriel = tarjCatriel.some(t => t.id === c.tarjeta_id)
+    return perteneceACatriel && c.quien_paga === 'Catriel'
+  }).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
   // Consumos Tarjetas Compartidos
   const tarjCompLisandro = consumosActivosMes.filter(c => {
     const perteneceALisandro = tarjLisandro.some(t => t.id === c.tarjeta_id)
@@ -261,9 +272,24 @@ export default function App() {
   const totalTarjComp = tarjCompLisandro + tarjCompCatriel
   const mitadTarjComp = totalTarjComp / 2
 
-  // Disponibles
-  const dispLisandro = totalIngLisandro - (mitadCompartidos + totalGPropLisandro + ahorros.Lisandro)
-  const dispCatriel = totalIngCatriel - (mitadCompartidos + totalGPropCatriel + ahorros.Catriel)
+  // CÁLCULO DE LIQUIDACIÓN DE TARJETAS COMPARTIDAS (QUIÉN LE DEBE A QUIÉN)
+  const diffTarjComp = tarjCompLisandro - tarjCompCatriel
+  const debeMonto = Math.abs(diffTarjComp) / 2
+  let quienDebeTexto = '¡Las tarjetas compartidas están 100% al día!'
+  if (diffTarjComp > 0) {
+    quienDebeTexto = `Catriel le debe $${debeMonto.toLocaleString()} a Lisandro`
+  } else if (diffTarjComp < 0) {
+    quienDebeTexto = `Lisandro le debe $${debeMonto.toLocaleString()} a Catriel`
+  }
+
+  // CÁLCULO DE GASTOS TOTALES Y DISPONIBLE FINAL EN BALANCE NETO
+  const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio + totalCombLisandro
+  const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio + totalCombCatriel
+
+  const dispLisandro = totalIngLisandro - gastosTotalesLisandro - ahorros.Lisandro
+  const dispCatriel = totalIngCatriel - gastosTotalesCatriel - ahorros.Catriel
+
+  const pagadoLiquidacionTarj = estaPagadoIndividual('liquidacion', 'tarjetas_comp')
 
   return (
     <div style={styles.appWrapper}>
@@ -418,13 +444,13 @@ export default function App() {
             )}
           </div>
 
-          {/* COLUMNA CENTRAL (GASTOS COMPARTIDOS CON DESCRIPCIÓN/TOTAL/LISANDRO/CATRIEL) */}
+          {/* COLUMNA CENTRAL (COMPARTIDO) */}
           <div style={styles.columnYellow}>
             <div style={styles.headerYellow}>
               <h2>🤝 GASTOS COMPARTIDOS (50 / 50)</h2>
             </div>
             
-            {/* TABLA DE GASTOS COMPARTIDOS CON PAGOS INDIVIDUALES */}
+            {/* TABLA DE GASTOS COMPARTIDOS */}
             <table style={styles.tableYellowColumna}>
               <thead>
                 <tr>
@@ -449,7 +475,6 @@ export default function App() {
                         ${montoTotal.toLocaleString()}
                       </td>
                       
-                      {/* PAGO LISANDRO */}
                       <td style={{ textAlign: 'center', padding: '6px' }}>
                         <span style={{ textDecoration: pagadoLisandro ? 'line-through' : 'none', opacity: pagadoLisandro ? 0.6 : 1, display: 'block', fontSize: '11px' }}>
                           ${mitad.toLocaleString()}
@@ -462,7 +487,6 @@ export default function App() {
                         </button>
                       </td>
 
-                      {/* PAGO CATRIEL */}
                       <td style={{ textAlign: 'center', padding: '6px' }}>
                         <span style={{ textDecoration: pagadoCatriel ? 'line-through' : 'none', opacity: pagadoCatriel ? 0.6 : 1, display: 'block', fontSize: '11px' }}>
                           ${mitad.toLocaleString()}
@@ -514,26 +538,37 @@ export default function App() {
               <button type="submit" style={styles.btnOrange}>+</button>
             </form>
 
-            {/* BALANCE NETO EN EL CENTRO */}
+            {/* BALANCE NETO DEL MES (Suma completa de ingresos, gastos y ahorro) */}
             <div style={{ ...styles.balanceNetoCard, marginTop: '16px' }}>
               <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a' }}>💰 BALANCE NETO DEL MES</h3>
               <div style={styles.rowFlex}>
+                
+                {/* LISANDRO */}
                 <div style={styles.balanceColBlue}>
                   <h4 style={{ color: '#0284c7', margin: 0, fontSize: '12px' }}>LISANDRO</h4>
-                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: ${totalIngLisandro.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos: ${(mitadCompartidos + totalGPropLisandro).toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: <strong>${totalIngLisandro.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos Totales: <strong>${gastosTotalesLisandro.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ahorros: <strong>${ahorros.Lisandro.toLocaleString()}</strong></p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', borderTop: '1px dashed #38bdf8', paddingTop: '4px' }}>
+                    DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong>
+                  </p>
                 </div>
+
+                {/* CATRIEL */}
                 <div style={styles.balanceColGreen}>
                   <h4 style={{ color: '#16a34a', margin: 0, fontSize: '12px' }}>CATRIEL</h4>
-                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: ${totalIngCatriel.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos: ${(mitadCompartidos + totalGPropCatriel).toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: <strong>${totalIngCatriel.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos Totales: <strong>${gastosTotalesCatriel.toLocaleString()}</strong></p>
+                  <p style={{ margin: '2px 0', fontSize: '11px' }}>Ahorros: <strong>${ahorros.Catriel.toLocaleString()}</strong></p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', borderTop: '1px dashed #4ade80', paddingTop: '4px' }}>
+                    DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong>
+                  </p>
                 </div>
+
               </div>
             </div>
 
-            {/* GASTOS TARJETAS COMPARTIDOS */}
+            {/* GASTOS TARJETAS COMPARTIDOS CON DETALLE DE DEUDA Y BOTÓN DE PAGO */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#854d0e' }}>💳 Gastos Tarjetas Compartidos</h4>
               <div style={styles.infoRowLightBlue}>
@@ -547,6 +582,24 @@ export default function App() {
               <div style={styles.infoRowLightYellow}>
                 <span>Corresponde pagar a CADA UNO (50%):</span>
                 <strong>${mitadTarjComp.toLocaleString()}</strong>
+              </div>
+
+              {/* LIQUIDACIÓN DE DEUDA ENTRE AMBOS */}
+              <div style={styles.statusBoxDeuda}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '12px', fontWeight: 'bold', color: '#0f172a' }}>
+                  ⚖️ LIQUIDACIÓN DE TARJETAS COMPARTIDAS
+                </p>
+                <p style={{ margin: '0 0 6px 0', fontSize: '12px', color: diffTarjComp === 0 ? '#16a34a' : '#d97706', fontWeight: 'bold' }}>
+                  {quienDebeTexto}
+                </p>
+                {diffTarjComp !== 0 && (
+                  <button
+                    onClick={() => togglePagoIndividual('liquidacion', 'tarjetas_comp')}
+                    style={{ ...styles.btnBadge, backgroundColor: pagadoLiquidacionTarj ? '#22c55e' : '#f59e0b', fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    {pagadoLiquidacionTarj ? '✅ Liquidación Pagada' : '⏳ Marca como Pagado'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -993,6 +1046,7 @@ const styles = {
   balanceNetoCard: { backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid #0f172a' },
   balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
   balanceColGreen: { backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', width: '48%' },
+  statusBoxDeuda: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '8px', textAlign: 'center' },
   selectStyle: { padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px' },
   selectFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px', marginTop: '2px' },
   inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '2px', boxSizing: 'border-box' },
