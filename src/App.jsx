@@ -538,7 +538,7 @@ export default function App() {
               <button type="submit" style={styles.btnOrange}>+</button>
             </form>
 
-            {/* BALANCE NETO DEL MES (Suma completa de ingresos, gastos y ahorro) */}
+            {/* BALANCE NETO DEL MES */}
             <div style={{ ...styles.balanceNetoCard, marginTop: '16px' }}>
               <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a' }}>💰 BALANCE NETO DEL MES</h3>
               <div style={styles.rowFlex}>
@@ -568,7 +568,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS TARJETAS COMPARTIDOS CON DETALLE DE DEUDA Y BOTÓN DE PAGO */}
+            {/* GASTOS TARJETAS COMPARTIDOS */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#854d0e' }}>💳 Gastos Tarjetas Compartidos</h4>
               <div style={styles.infoRowLightBlue}>
@@ -603,53 +603,75 @@ export default function App() {
               </div>
             </div>
 
-            {/* CARGO JUSTO DE TARJETAS */}
+            {/* CARGO JUSTO Y MONTO DE FONDOS A SEPARAR POR TARJETA (MUESTRA AMBOS CÁLCULOS) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
-                📊 Cargo Justo de Tarjetas (Solo Gastos Propios)
+                📊 Cargo Justo y Fondos a Separar por Tarjeta
               </h4>
               <div style={styles.grid2Col}>
+                
+                {/* LISANDRO */}
                 <div style={styles.boxCargoJustoBlue}>
                   <h5 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#0369a1', borderBottom: '1px solid #bae6fd', paddingBottom: '4px' }}>
-                    LISANDRO (PROPIO)
+                    TARJETAS DE LISANDRO
                   </h5>
                   {tarjLisandro.length === 0 ? (
                     <p style={styles.emptyText}>Sin tarjetas</p>
                   ) : (
                     tarjLisandro.map(t => {
-                      const propioTarj = consumosActivosMes
-                        .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Lisandro')
-                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
+                      const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const propioTarj = consumosTarjeta.filter(c => c.quien_paga === 'Lisandro').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const compTarj = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const aportaCatriel = compTarj / 2
+
                       return (
-                        <div key={t.id} style={styles.rowFlexCargo}>
-                          <span>{t.nombre}:</span>
-                          <strong>${propioTarj.toLocaleString()}</strong>
+                        <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
+                          <div style={styles.rowFlexCargo}>
+                            <span style={{ fontWeight: 'bold' }}>{t.nombre}:</span>
+                            <strong style={{ color: '#0284c7' }}>${totalResumen.toLocaleString()} (Total Banco)</strong>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                            • Lisandro pone: ${ (propioTarj + (compTarj / 2)).toLocaleString() } <br/>
+                            • Catriel le aporta: ${ aportaCatriel.toLocaleString() }
+                          </div>
                         </div>
                       )
                     })
                   )}
                 </div>
 
+                {/* CATRIEL */}
                 <div style={styles.boxCargoJustoGreen}>
                   <h5 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#15803d', borderBottom: '1px solid #bbf7d0', paddingBottom: '4px' }}>
-                    CATRIEL (PROPIO)
+                    TARJETAS DE CATRIEL
                   </h5>
                   {tarjCatriel.length === 0 ? (
                     <p style={styles.emptyText}>Sin tarjetas</p>
                   ) : (
                     tarjCatriel.map(t => {
-                      const propioTarj = consumosActivosMes
-                        .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Catriel')
-                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
+                      const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const propioTarj = consumosTarjeta.filter(c => c.quien_paga === 'Catriel').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const compTarj = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const aportaLisandro = compTarj / 2
+
                       return (
-                        <div key={t.id} style={styles.rowFlexCargo}>
-                          <span>{t.nombre}:</span>
-                          <strong>${propioTarj.toLocaleString()}</strong>
+                        <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
+                          <div style={styles.rowFlexCargo}>
+                            <span style={{ fontWeight: 'bold' }}>{t.nombre}:</span>
+                            <strong style={{ color: '#16a34a' }}>${totalResumen.toLocaleString()} (Total Banco)</strong>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                            • Catriel pone: ${ (propioTarj + (compTarj / 2)).toLocaleString() } <br/>
+                            • Lisandro le aporta: ${ aportaLisandro.toLocaleString() }
+                          </div>
                         </div>
                       )
                     })
                   )}
                 </div>
+
               </div>
             </div>
 
@@ -1030,7 +1052,7 @@ const styles = {
   emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', margin: '4px 0' },
   rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   rowFlexTableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0284c7', color: '#fff', padding: '6px 8px', borderRadius: '4px 4px 0 0', fontSize: '12px' },
-  rowFlexCargo: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0', borderBottom: '1px dashed #cbd5e1' },
+  rowFlexCargo: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' },
   btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '2px', fontSize: '11px' },
   btnBadge: { border: 'none', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' },
   btnBadgeMini: { border: 'none', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '9px', cursor: 'pointer', fontWeight: 'bold' },
