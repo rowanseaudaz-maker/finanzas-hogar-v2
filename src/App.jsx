@@ -12,7 +12,6 @@ export default function App() {
   const [gastosCompartidos, setGastosCompartidos] = useState([])
   const [tarjetas, setTarjetas] = useState([])
   const [consumosTarjetas, setConsumosTarjetas] = useState([])
-  const [prestamos, setPrestamos] = useState([])
   const [combustible, setCombustible] = useState([])
 
   // Formularios
@@ -21,22 +20,6 @@ export default function App() {
   const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
   const [nuevoCombustible, setNuevoCombustible] = useState({ persona: 'Catriel', monto: '' })
-  const [nuevoConsumo, setNuevoConsumo] = useState({
-    realiza: 'Catriel',
-    tarjetaId: '',
-    descripcion: '',
-    montoCuota: '',
-    cuotaActual: 1,
-    totalCuotas: 1,
-    quienPaga: 'Catriel'
-  })
-  const [nuevoPrestamo, setNuevoPrestamo] = useState({
-    entidad: '',
-    montoCuota: '',
-    cuotaActual: 1,
-    totalCuotas: 12,
-    tipo: 'Compartido (Centro)'
-  })
 
   useEffect(() => {
     cargarTodo()
@@ -68,9 +51,6 @@ export default function App() {
       const { data: cons } = await supabase.from('consumos_tarjetas').select('*')
       setConsumosTarjetas(cons || [])
 
-      const { data: prest } = await supabase.from('prestamos').select('*')
-      setPrestamos(prest || [])
-
       const { data: comb } = await supabase.from('combustible').select('*')
       setCombustible(comb || [])
 
@@ -87,7 +67,7 @@ export default function App() {
     }
   }
 
-  // Guardados en Supabase
+  // Funciones de Guardado
   const agregarGastoComp = async (e) => {
     e.preventDefault()
     if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
@@ -203,7 +183,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Grid 3 Columnas Estructurado */}
+        {/* Grid 3 Columnas */}
         <div style={styles.mainGrid}>
           
           {/* COLUMNA LISANDRO */}
@@ -395,7 +375,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Formularios compactos organizados */}
+          {/* Formularios compactos */}
           <div style={{ ...styles.grid3Col, marginTop: '12px' }}>
             
             {/* Form Ingreso */}
@@ -471,7 +451,6 @@ const styles = {
   inputMonth: { border: 'none', background: 'transparent', marginLeft: '6px', fontWeight: 'bold' },
   mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: '12px' },
   
-  // Columnas
   columnBlue: { backgroundColor: '#e0f2fe', borderRadius: '14px', padding: '12px', border: '1px solid #38bdf8' },
   headerBlue: { color: '#0369a1', marginBottom: '8px', fontSize: '14px' },
   subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' },
