@@ -61,23 +61,30 @@ export default function App() {
         setAhorros({ Lisandro: lis, Catriel: cat })
       }
     } catch (e) {
-      console.error(e)
+      console.error('Error al cargar:', e)
     } finally {
       setCargando(false)
     }
   }
 
-  // Guardados
+  // Guardados en Supabase
   const agregarGastoComp = async (e) => {
     e.preventDefault()
-    if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
-    await supabase.from('gastos_compartidos').insert([{
+    if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) {
+      alert('Ingresá el concepto y el monto para el gasto compartido.')
+      return
+    }
+    const { error } = await supabase.from('gastos_compartidos').insert([{
       concepto: nuevoGastoComp.concepto,
       monto: parseFloat(nuevoGastoComp.monto),
       periodo
     }])
-    setNuevoGastoComp({ concepto: '', monto: '' })
-    cargarTodo()
+    if (error) {
+      alert('Error de Supabase: ' + error.message)
+    } else {
+      setNuevoGastoComp({ concepto: '', monto: '' })
+      cargarTodo()
+    }
   }
 
   const borrarGastoComp = async (id) => {
@@ -87,40 +94,64 @@ export default function App() {
 
   const agregarIngreso = async (e) => {
     e.preventDefault()
-    if (!nuevoIngreso.descripcion || !nuevoIngreso.monto) return
-    await supabase.from('ingresos').insert([{
+    if (!nuevoIngreso.descripcion || !nuevoIngreso.monto) {
+      alert('Completá la descripción y el monto del ingreso.')
+      return
+    }
+    const { error } = await supabase.from('ingresos').insert([{
       persona: nuevoIngreso.persona,
       descripcion: nuevoIngreso.descripcion,
       monto: parseFloat(nuevoIngreso.monto),
       periodo
     }])
-    setNuevoIngreso({ persona: 'Catriel', descripcion: '', monto: '' })
-    cargarTodo()
+    if (error) {
+      alert('Error al guardar ingreso: ' + error.message)
+    } else {
+      alert('¡Ingreso guardado con éxito!')
+      setNuevoIngreso({ persona: nuevoIngreso.persona, descripcion: '', monto: '' })
+      cargarTodo()
+    }
   }
 
   const agregarGastoPropio = async (e) => {
     e.preventDefault()
-    if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
-    await supabase.from('gastos_propios').insert([{
+    if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) {
+      alert('Completá la descripción y el monto del gasto propio.')
+      return
+    }
+    const { error } = await supabase.from('gastos_propios').insert([{
       persona: nuevoGastoPropio.persona,
       descripcion: nuevoGastoPropio.descripcion,
       monto: parseFloat(nuevoGastoPropio.monto),
       periodo
     }])
-    setNuevoGastoPropio({ persona: 'Catriel', descripcion: '', monto: '' })
-    cargarTodo()
+    if (error) {
+      alert('Error al guardar gasto propio: ' + error.message)
+    } else {
+      alert('¡Gasto propio guardado!')
+      setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
+      cargarTodo()
+    }
   }
 
   const agregarCombustible = async (e) => {
     e.preventDefault()
-    if (!nuevoCombustible.monto) return
-    await supabase.from('combustible').insert([{
+    if (!nuevoCombustible.monto) {
+      alert('Ingresá el monto de combustible.')
+      return
+    }
+    const { error } = await supabase.from('combustible').insert([{
       persona: nuevoCombustible.persona,
       monto: parseFloat(nuevoCombustible.monto),
       periodo
     }])
-    setNuevoCombustible({ persona: 'Catriel', monto: '' })
-    cargarTodo()
+    if (error) {
+      alert('Error en combustible: ' + error.message)
+    } else {
+      alert('¡Combustible registrado!')
+      setNuevoCombustible({ persona: nuevoCombustible.persona, monto: '' })
+      cargarTodo()
+    }
   }
 
   const guardarAhorro = async (persona, monto) => {
@@ -130,10 +161,18 @@ export default function App() {
 
   const agregarTarjeta = async (e) => {
     e.preventDefault()
-    if (!nuevaTarjeta.nombre) return
-    await supabase.from('tarjetas').insert([nuevaTarjeta])
-    setNuevaTarjeta({ persona: 'Catriel', nombre: '' })
-    cargarTodo()
+    if (!nuevaTarjeta.nombre) {
+      alert('Ingresá el nombre de la tarjeta.')
+      return
+    }
+    const { error } = await supabase.from('tarjetas').insert([nuevaTarjeta])
+    if (error) {
+      alert('Error al crear tarjeta: ' + error.message)
+    } else {
+      alert('¡Tarjeta creada!')
+      setNuevaTarjeta({ persona: nuevaTarjeta.persona, nombre: '' })
+      cargarTodo()
+    }
   }
 
   // Cálculos
@@ -166,6 +205,7 @@ export default function App() {
   return (
     <div style={styles.appWrapper}>
       <div style={styles.appContainer}>
+        {/* Header */}
         <div style={styles.topHeader}>
           <div>
             <h1 style={styles.title}>🏠 Dashboard Financiero del Hogar</h1>
@@ -184,6 +224,7 @@ export default function App() {
 
         {/* Grid 3 Columnas */}
         <div style={styles.mainGrid}>
+          
           {/* LISANDRO */}
           <div style={styles.columnBlue}>
             <div style={styles.headerBlue}>
@@ -325,6 +366,7 @@ export default function App() {
         {/* Inferiores */}
         <div style={styles.bottomSection}>
           <div style={styles.grid2Col}>
+            {/* Combustible */}
             <div style={{ ...styles.cardWhite, border: '1px solid #fdba74' }}>
               <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
               <div style={styles.rowFlex}>
@@ -336,11 +378,18 @@ export default function App() {
                   <option value="Catriel">Catriel</option>
                   <option value="Lisandro">Lisandro</option>
                 </select>
-                <input type="number" placeholder="$ Monto" value={nuevoCombustible.monto} onChange={e => setNuevoCombustible({ ...nuevoCombustible, monto: e.target.value })} style={styles.inputFlex} />
+                <input
+                  type="number"
+                  placeholder="$ Monto"
+                  value={nuevoCombustible.monto}
+                  onChange={e => setNuevoCombustible({ ...nuevoCombustible, monto: e.target.value })}
+                  style={styles.inputFlex}
+                />
                 <button type="submit" style={styles.btnOrange}>+ Cargar</button>
               </form>
             </div>
 
+            {/* Balance Neto */}
             <div style={styles.balanceNetoCard}>
               <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px' }}>💰 BALANCE NETO DEL MES</h3>
               <div style={styles.rowFlex}>
@@ -360,38 +409,86 @@ export default function App() {
             </div>
           </div>
 
+          {/* Formularios de la fila inferior */}
           <div style={{ ...styles.grid3Col, marginTop: '12px' }}>
+            
+            {/* Form Ingresos */}
             <form onSubmit={agregarIngreso} style={styles.cardWhite}>
               <h4 style={styles.formTitle}>➕ Cargar Ingreso</h4>
-              <select value={nuevoIngreso.persona} onChange={e => setNuevoIngreso({ ...nuevoIngreso, persona: e.target.value })} style={styles.selectFull}>
+              <select
+                value={nuevoIngreso.persona}
+                onChange={e => setNuevoIngreso({ ...nuevoIngreso, persona: e.target.value })}
+                style={styles.selectFull}
+              >
                 <option value="Catriel">Para Catriel</option>
                 <option value="Lisandro">Para Lisandro</option>
               </select>
-              <input type="text" placeholder="Descripción" value={nuevoIngreso.descripcion} onChange={e => setNuevoIngreso({ ...nuevoIngreso, descripcion: e.target.value })} style={styles.inputFull} />
-              <input type="number" placeholder="$ Monto" value={nuevoIngreso.monto} onChange={e => setNuevoIngreso({ ...nuevoIngreso, monto: e.target.value })} style={styles.inputFull} />
+              <input
+                type="text"
+                placeholder="Descripción"
+                value={nuevoIngreso.descripcion}
+                onChange={e => setNuevoIngreso({ ...nuevoIngreso, descripcion: e.target.value })}
+                style={styles.inputFull}
+              />
+              <input
+                type="number"
+                placeholder="$ Monto"
+                value={nuevoIngreso.monto}
+                onChange={e => setNuevoIngreso({ ...nuevoIngreso, monto: e.target.value })}
+                style={styles.inputFull}
+              />
               <button type="submit" style={styles.btnBlueFull}>+ Guardar Ingreso</button>
             </form>
 
+            {/* Form Gastos Propios */}
             <form onSubmit={agregarGastoPropio} style={styles.cardWhite}>
               <h4 style={styles.formTitle}>➕ Cargar Gasto Propio</h4>
-              <select value={nuevoGastoPropio.persona} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })} style={styles.selectFull}>
+              <select
+                value={nuevoGastoPropio.persona}
+                onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })}
+                style={styles.selectFull}
+              >
                 <option value="Catriel">De Catriel</option>
                 <option value="Lisandro">De Lisandro</option>
               </select>
-              <input type="text" placeholder="Descripción" value={nuevoGastoPropio.descripcion} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, descripcion: e.target.value })} style={styles.inputFull} />
-              <input type="number" placeholder="$ Monto" value={nuevoGastoPropio.monto} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })} style={styles.inputFull} />
+              <input
+                type="text"
+                placeholder="Descripción"
+                value={nuevoGastoPropio.descripcion}
+                onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, descripcion: e.target.value })}
+                style={styles.inputFull}
+              />
+              <input
+                type="number"
+                placeholder="$ Monto"
+                value={nuevoGastoPropio.monto}
+                onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })}
+                style={styles.inputFull}
+              />
               <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto</button>
             </form>
 
+            {/* Form Tarjetas */}
             <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
               <h4 style={styles.formTitle}>💳 Crear Tarjeta</h4>
-              <select value={nuevaTarjeta.persona} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })} style={styles.selectFull}>
+              <select
+                value={nuevaTarjeta.persona}
+                onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })}
+                style={styles.selectFull}
+              >
                 <option value="Catriel">Para Catriel</option>
                 <option value="Lisandro">Para Lisandro</option>
               </select>
-              <input type="text" placeholder="Nombre (ej: NACION VISA)" value={nuevaTarjeta.nombre} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })} style={styles.inputFull} />
+              <input
+                type="text"
+                placeholder="Nombre (ej: NACION VISA)"
+                value={nuevaTarjeta.nombre}
+                onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })}
+                style={styles.inputFull}
+              />
               <button type="submit" style={styles.btnBlueFull}>+ Crear Tarjeta</button>
             </form>
+
           </div>
         </div>
       </div>
