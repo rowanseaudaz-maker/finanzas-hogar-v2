@@ -5,7 +5,7 @@ export default function App() {
   const [periodo, setPeriodo] = useState('2026-10')
   const [cargando, setCargando] = useState(true)
 
-  // Datos de la base
+  // Datos
   const [ingresos, setIngresos] = useState([])
   const [ahorros, setAhorros] = useState({ Lisandro: 0, Catriel: 0 })
   const [gastosPropios, setGastosPropios] = useState([])
@@ -16,8 +16,11 @@ export default function App() {
   const [combustible, setCombustible] = useState([])
 
   // Formularios
-  const [nuevoGastoCompartido, setNuevoGastoCompartido] = useState({ concepto: '', monto: '' })
+  const [nuevoGastoComp, setNuevoGastoComp] = useState({ concepto: '', monto: '' })
+  const [nuevoIngreso, setNuevoIngreso] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
+  const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
+  const [nuevoCombustible, setNuevoCombustible] = useState({ persona: 'Catriel', monto: '' })
   const [nuevoConsumo, setNuevoConsumo] = useState({
     realiza: 'Catriel',
     tarjetaId: '',
@@ -84,21 +87,59 @@ export default function App() {
     }
   }
 
-  // Operaciones DB
-  const agregarGastoCompartido = async (e) => {
+  // Funciones de Guardado en Supabase
+  const agregarGastoComp = async (e) => {
     e.preventDefault()
-    if (!nuevoGastoCompartido.concepto || !nuevoGastoCompartido.monto) return
+    if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
     await supabase.from('gastos_compartidos').insert([{
-      concepto: nuevoGastoCompartido.concepto,
-      monto: parseFloat(nuevoGastoCompartido.monto),
+      concepto: nuevoGastoComp.concepto,
+      monto: parseFloat(nuevoGastoComp.monto),
       periodo
     }])
-    setNuevoGastoCompartido({ concepto: '', monto: '' })
+    setNuevoGastoComp({ concepto: '', monto: '' })
     cargarTodo()
   }
 
-  const borrarGastoCompartido = async (id) => {
+  const borrarGastoComp = async (id) => {
     await supabase.from('gastos_compartidos').delete().eq('id', id)
+    cargarTodo()
+  }
+
+  const agregarIngreso = async (e) => {
+    e.preventDefault()
+    if (!nuevoIngreso.descripcion || !nuevoIngreso.monto) return
+    await supabase.from('ingresos').insert([{
+      persona: nuevoIngreso.persona,
+      descripcion: nuevoIngreso.descripcion,
+      monto: parseFloat(nuevoIngreso.monto),
+      periodo
+    }])
+    setNuevoIngreso({ persona: 'Catriel', descripcion: '', monto: '' })
+    cargarTodo()
+  }
+
+  const agregarGastoPropio = async (e) => {
+    e.preventDefault()
+    if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
+    await supabase.from('gastos_propios').insert([{
+      persona: nuevoGastoPropio.persona,
+      descripcion: nuevoGastoPropio.descripcion,
+      monto: parseFloat(nuevoGastoPropio.monto),
+      periodo
+    }])
+    setNuevoGastoPropio({ persona: 'Catriel', descripcion: '', monto: '' })
+    cargarTodo()
+  }
+
+  const agregarCombustible = async (e) => {
+    e.preventDefault()
+    if (!nuevoCombustible.monto) return
+    await supabase.from('combustible').insert([{
+      persona: nuevoCombustible.persona,
+      monto: parseFloat(nuevoCombustible.monto),
+      periodo
+    }])
+    setNuevoCombustible({ persona: 'Catriel', monto: '' })
     cargarTodo()
   }
 
@@ -160,7 +201,6 @@ export default function App() {
   const combustibleLisandro = combustible.filter(c => c.persona === 'Lisandro').reduce((acc, c) => acc + Number(c.monto), 0)
   const combustibleCatriel = combustible.filter(c => c.persona === 'Catriel').reduce((acc, c) => acc + Number(c.monto), 0)
 
-  // Totales Tarjetas
   const tarjLisandro = tarjetas.filter(t => t.persona === 'Lisandro')
   const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
 
@@ -172,26 +212,16 @@ export default function App() {
     .filter(c => tarjCatriel.some(t => t.id === c.tarjeta_id))
     .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
-  const tarjCompLisandro = consumosTarjetas
-    .filter(c => c.quien_paga === 'Compartido' && tarjLisandro.some(t => t.id === c.tarjeta_id))
-    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-
-  const tarjCompCatriel = consumosTarjetas
-    .filter(c => c.quien_paga === 'Compartido' && tarjCatriel.some(t => t.id === c.tarjeta_id))
-    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-
-  const mitadTarjComp = (tarjCompLisandro + tarjCompCatriel) / 2
-
   const dispLisandro = ingresosLisandro - (mitadCompartidos + gastosPropLisandro + ahorros.Lisandro)
   const dispCatriel = ingresosCatriel - (mitadCompartidos + gastosPropCatriel + ahorros.Catriel)
 
   return (
     <div style={styles.appContainer}>
-      {/* Header */}
+      {/* Encabezado */}
       <div style={styles.topHeader}>
         <div>
           <h1 style={styles.title}>🏠 Dashboard Financiero del Hogar</h1>
-          <p style={styles.subtitle}>Vista Dividida: Lisandro (Izq) | Compartido (Centro) | Catriel (Der)</p>
+          <p style={styles.subtitle}>Lisandro (Izq) | Compartido (Centro) | Catriel (Der)</p>
         </div>
         <div style={styles.periodSelector}>
           <span>📅 Período:</span>
@@ -204,10 +234,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Grid de 3 Columnas Principal */}
+      {/* Grid 3 Columnas */}
       <div style={styles.mainGrid}>
         
-        {/* COLUMNA LISANDRO (AZUL) */}
+        {/* COLUMNA LISANDRO */}
         <div style={styles.columnBlue}>
           <div style={styles.headerBlue}>
             <h2>👤 LISANDRO</h2>
@@ -230,32 +260,32 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ ...styles.boxLightBlue, marginTop: '12px' }}>
-            <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO</span>
-            <p style={{ textAlign: 'right', marginTop: '10px', fontSize: '13px' }}>
-              Subtotal Propio: <strong>${gastosPropLisandro.toLocaleString()}</strong>
+          <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
+            <span style={styles.boxTitle}>GASTOS PROPIOS</span>
+            <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
+              Subtotal: <strong>${gastosPropLisandro.toLocaleString()}</strong>
             </p>
           </div>
 
-          <div style={styles.cardGroupTitle}>💳 Tarjetas de Lisandro</div>
+          <div style={styles.cardGroupTitle}>💳 Tarjetas Lisandro</div>
           {tarjLisandro.length === 0 ? (
-            <p style={styles.emptyText}>No hay tarjetas creadas</p>
+            <p style={styles.emptyText}>Sin tarjetas</p>
           ) : (
             tarjLisandro.map(t => (
               <div key={t.id} style={styles.cardItemBlue}>
                 <span>💳 <strong>{t.nombre}</strong></span>
-                <p style={{ fontSize: '12px', margin: '4px 0 0 0', color: '#64748b' }}>
-                  Total Resumen Mes: <strong>${totalTarjLisandro.toLocaleString()}</strong>
+                <p style={{ fontSize: '11px', margin: '2px 0 0 0', color: '#64748b' }}>
+                  Resumen Mes: <strong>${totalTarjLisandro.toLocaleString()}</strong>
                 </p>
               </div>
             ))
           )}
         </div>
 
-        {/* COLUMNA COMPARTIDO (AMARILLO) */}
+        {/* COLUMNA COMPARTIDO */}
         <div style={styles.columnYellow}>
           <div style={styles.headerYellow}>
-            <h2>🤝 GASTOS COMPARTIDOS (50 / 50)</h2>
+            <h2>🤝 COMPARTIDO (50 / 50)</h2>
           </div>
 
           <table style={styles.tableYellow}>
@@ -271,7 +301,7 @@ export default function App() {
                   <td>{g.concepto}</td>
                   <td style={{ textAlign: 'right', color: '#b45309', fontWeight: 'bold' }}>
                     ${Number(g.monto).toLocaleString()}
-                    <button onClick={() => borrarGastoCompartido(g.id)} style={styles.btnIcon}>🗑️</button>
+                    <button onClick={() => borrarGastoComp(g.id)} style={styles.btnIcon}>🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -283,53 +313,32 @@ export default function App() {
               <span>Total Compartidos:</span>
               <strong>${totalCompartidos.toLocaleString()}</strong>
             </div>
-            <div style={{ ...styles.rowFlex, color: '#b45309', marginTop: '4px' }}>
-              <span>Corresponde a CADA UNO (50%):</span>
+            <div style={{ ...styles.rowFlex, color: '#b45309', marginTop: '2px' }}>
+              <span>Cada uno (50%):</span>
               <strong>${mitadCompartidos.toLocaleString()}</strong>
             </div>
           </div>
 
-          <form onSubmit={agregarGastoCompartido} style={{ ...styles.rowFlex, gap: '6px', marginTop: '12px' }}>
+          <form onSubmit={agregarGastoComp} style={{ ...styles.rowFlex, gap: '4px', marginTop: '8px' }}>
             <input
               type="text"
               placeholder="Ej: Alquiler"
-              value={nuevoGastoCompartido.concepto}
-              onChange={e => setNuevoGastoCompartido({ ...nuevoGastoCompartido, concepto: e.target.value })}
+              value={nuevoGastoComp.concepto}
+              onChange={e => setNuevoGastoComp({ ...nuevoGastoComp, concepto: e.target.value })}
               style={styles.inputFlex}
             />
             <input
               type="number"
               placeholder="$ Total"
-              value={nuevoGastoCompartido.monto}
-              onChange={e => setNuevoGastoCompartido({ ...nuevoGastoCompartido, monto: e.target.value })}
-              style={{ ...styles.inputFlex, maxWidth: '90px' }}
+              value={nuevoGastoComp.monto}
+              onChange={e => setNuevoGastoComp({ ...nuevoGastoComp, monto: e.target.value })}
+              style={{ ...styles.inputFlex, maxWidth: '80px' }}
             />
             <button type="submit" style={styles.btnOrange}>+</button>
           </form>
-
-          {/* Tarjetas Compartidas */}
-          <div style={{ marginTop: '20px', borderTop: '1px solid #fef08a', paddingTop: '15px' }}>
-            <h4 style={{ margin: '0 0 10px 0' }}>💳 Gastos Tarjetas Compartidos</h4>
-            <div style={styles.infoRowLightBlue}>
-              <span>En tarjetas de Lisandro:</span>
-              <strong>${tarjCompLisandro.toLocaleString()}</strong>
-            </div>
-            <div style={{ ...styles.infoRowLightGreen, marginTop: '6px' }}>
-              <span>En tarjetas de Catriel:</span>
-              <strong>${tarjCompCatriel.toLocaleString()}</strong>
-            </div>
-            <div style={styles.infoRowLightYellow}>
-              <span>Corresponde pagar a CADA UNO (50%):</span>
-              <strong>${mitadTarjComp.toLocaleString()}</strong>
-            </div>
-            <div style={styles.statusBoxOk}>
-              ⚖️ LIQUIDACIÓN DE TARJETAS COMPARTIDAS<br />
-              <strong>¡Las tarjetas compartidas están 100% al día!</strong>
-            </div>
-          </div>
         </div>
 
-        {/* COLUMNA CATRIEL (VERDE) */}
+        {/* COLUMNA CATRIEL */}
         <div style={styles.columnGreen}>
           <div style={styles.headerGreen}>
             <h2>👤 CATRIEL</h2>
@@ -352,22 +361,22 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ ...styles.boxLightGreen, marginTop: '12px' }}>
-            <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL</span>
-            <p style={{ textAlign: 'right', marginTop: '10px', fontSize: '13px' }}>
-              Subtotal Propio: <strong>${gastosPropCatriel.toLocaleString()}</strong>
+          <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
+            <span style={styles.boxTitle}>GASTOS PROPIOS</span>
+            <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
+              Subtotal: <strong>${gastosPropCatriel.toLocaleString()}</strong>
             </p>
           </div>
 
-          <div style={styles.cardGroupTitleGreen}>💳 Tarjetas de Catriel</div>
+          <div style={styles.cardGroupTitleGreen}>💳 Tarjetas Catriel</div>
           {tarjCatriel.length === 0 ? (
-            <p style={styles.emptyText}>No hay tarjetas creadas</p>
+            <p style={styles.emptyText}>Sin tarjetas</p>
           ) : (
             tarjCatriel.map(t => (
               <div key={t.id} style={styles.cardItemGreen}>
                 <span>💳 <strong>{t.nombre}</strong></span>
-                <p style={{ fontSize: '12px', margin: '4px 0 0 0', color: '#64748b' }}>
-                  Total Resumen Mes: <strong>${totalTarjCatriel.toLocaleString()}</strong>
+                <p style={{ fontSize: '11px', margin: '2px 0 0 0', color: '#64748b' }}>
+                  Resumen Mes: <strong>${totalTarjCatriel.toLocaleString()}</strong>
                 </p>
               </div>
             ))
@@ -376,140 +385,81 @@ export default function App() {
 
       </div>
 
-      {/* PANELES INFERIORES */}
+      {/* Secciones Inferiores */}
       <div style={styles.bottomSection}>
         
-        {/* Cargo Justo y Combustible */}
         <div style={styles.grid2Col}>
-          <div style={styles.cardWhite}>
-            <h4>📊 Cargo Justo de Tarjetas (Solo Gastos Propios)</h4>
-            <div style={styles.rowFlex}>
-              <div style={styles.boxMiniBlue}>
-                <span style={{ fontSize: '12px' }}>LISANDRO (PROPIO)</span>
-                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#0284c7', margin: '4px 0' }}>$0</p>
-                <small style={{ color: '#94a3b8' }}>Sin consumos propios</small>
-              </div>
-              <div style={styles.boxMiniGreen}>
-                <span style={{ fontSize: '12px' }}>CATRIEL (PROPIO)</span>
-                <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#16a34a', margin: '4px 0' }}>$0</p>
-                <small style={{ color: '#94a3b8' }}>Sin consumos propios</small>
-              </div>
-            </div>
-          </div>
-
+          {/* Combustible */}
           <div style={{ ...styles.cardWhite, border: '1px solid #fdba74' }}>
-            <h4 style={{ color: '#c2410c' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
+            <h4 style={{ color: '#c2410c', margin: '0 0 8px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
             <div style={styles.rowFlex}>
-              <div style={styles.boxMiniOrange}>
-                <span>Combustible Lisandro:</span>
-                <p style={{ color: '#c2410c', fontWeight: 'bold', margin: '4px 0' }}>${combustibleLisandro.toLocaleString()}</p>
-              </div>
-              <div style={styles.boxMiniOrange}>
-                <span>Combustible Catriel:</span>
-                <p style={{ color: '#c2410c', fontWeight: 'bold', margin: '4px 0' }}>${combustibleCatriel.toLocaleString()}</p>
-              </div>
+              <div>Lisandro: <strong>${combustibleLisandro.toLocaleString()}</strong></div>
+              <div>Catriel: <strong>${combustibleCatriel.toLocaleString()}</strong></div>
             </div>
-          </div>
-        </div>
-
-        {/* BALANCE NETO DEL MES */}
-        <div style={styles.balanceNetoCard}>
-          <h3 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>💰 BALANCE NETO DEL MES</h3>
-          <div style={styles.rowFlex}>
-            <div style={styles.balanceColBlue}>
-              <h4 style={{ color: '#0284c7', margin: '0 0 8px 0' }}>LISANDRO</h4>
-              <p>Ingresos: <strong>${ingresosLisandro.toLocaleString()}</strong></p>
-              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p>
-              <p>Ahorro: <strong>${ahorros.Lisandro.toLocaleString()}</strong></p>
-              <hr />
-              <p style={{ fontSize: '15px' }}>
-                DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong>
-              </p>
-            </div>
-
-            <div style={styles.balanceColGreen}>
-              <h4 style={{ color: '#16a34a', margin: '0 0 8px 0' }}>CATRIEL</h4>
-              <p>Ingresos: <strong>${ingresosCatriel.toLocaleString()}</strong></p>
-              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p>
-              <p>Ahorro: <strong>${ahorros.Catriel.toLocaleString()}</strong></p>
-              <hr />
-              <p style={{ fontSize: '15px' }}>
-                DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* FORMULARIOS DE CARGA */}
-        <div style={{ ...styles.cardWhite, border: '2px solid #c084fc', marginTop: '20px' }}>
-          <h4 style={{ color: '#7e22ce' }}>🏛️ Cargar Nuevo Préstamo / Crédito</h4>
-          <form onSubmit={agregarPrestamo} style={{ ...styles.rowFlex, gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
-            <input type="text" placeholder="Entidad (ej: Banco Hipotecario)" value={nuevoPrestamo.entidad} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, entidad: e.target.value })} style={styles.inputFlex} />
-            <input type="number" placeholder="$ Cuota" value={nuevoPrestamo.montoCuota} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, montoCuota: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '100px' }} />
-            <input type="number" value={nuevoPrestamo.cuotaActual} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, cuotaActual: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '60px' }} />
-            <input type="number" value={nuevoPrestamo.totalCuotas} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, totalCuotas: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '60px' }} />
-            <select value={nuevoPrestamo.tipo} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, tipo: e.target.value })} style={styles.selectStyle}>
-              <option value="Compartido (Centro)">Compartido (Centro)</option>
-              <option value="Lisandro">Lisandro</option>
-              <option value="Catriel">Catriel</option>
-            </select>
-            <button type="submit" style={styles.btnPurple}>+ Cargar Préstamo</button>
-          </form>
-        </div>
-
-        <div style={{ ...styles.cardWhite, marginTop: '15px' }}>
-          <h4>💳 Cargar Nuevo Consumo con Tarjeta</h4>
-          <form onSubmit={agregarConsumo} style={{ marginTop: '10px' }}>
-            <div style={{ ...styles.rowFlex, gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-              <span>1. ¿Quién realiza el gasto?:</span>
-              <select value={nuevoConsumo.realiza} onChange={e => setNuevoConsumo({ ...nuevoConsumo, realiza: e.target.value })} style={styles.selectStyle}>
+            <form onSubmit={agregarCombustible} style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+              <select value={nuevoCombustible.persona} onChange={e => setNuevoCombustible({ ...nuevoCombustible, persona: e.target.value })} style={styles.selectStyle}>
                 <option value="Catriel">Catriel</option>
                 <option value="Lisandro">Lisandro</option>
               </select>
+              <input type="number" placeholder="$ Monto" value={nuevoCombustible.monto} onChange={e => setNuevoCombustible({ ...nuevoCombustible, monto: e.target.value })} style={styles.inputFlex} />
+              <button type="submit" style={styles.btnOrange}>+ Cargar</button>
+            </form>
+          </div>
 
-              <span>2. Elegir Tarjeta:</span>
-              <select value={nuevoConsumo.tarjetaId} onChange={e => setNuevoConsumo({ ...nuevoConsumo, tarjetaId: e.target.value })} style={styles.selectStyle}>
-                <option value="">-- Seleccionar --</option>
-                {tarjetas.map(t => <option key={t.id} value={t.id}>{t.persona} - {t.nombre}</option>)}
-              </select>
+          {/* Balance Neto */}
+          <div style={styles.balanceNetoCard}>
+            <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px' }}>💰 BALANCE NETO DEL MES</h3>
+            <div style={styles.rowFlex}>
+              <div style={styles.balanceColBlue}>
+                <h4 style={{ color: '#0284c7', margin: 0, fontSize: '12px' }}>LISANDRO</h4>
+                <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
+              </div>
+              <div style={styles.balanceColGreen}>
+                <h4 style={{ color: '#16a34a', margin: 0, fontSize: '12px' }}>CATRIEL</h4>
+                <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong></p>
+              </div>
             </div>
-
-            <div style={{ ...styles.rowFlex, gap: '8px', flexWrap: 'wrap' }}>
-              <input type="text" placeholder="Descripción del gasto" value={nuevoConsumo.descripcion} onChange={e => setNuevoConsumo({ ...nuevoConsumo, descripcion: e.target.value })} style={styles.inputFlex} />
-              <input type="number" placeholder="$ Monto por cuota" value={nuevoConsumo.montoCuota} onChange={e => setNuevoConsumo({ ...nuevoConsumo, montoCuota: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '140px' }} />
-              <button type="submit" style={styles.btnBlue}>+ Cargar Consumo</button>
-            </div>
-          </form>
+          </div>
         </div>
 
-        <div style={{ ...styles.grid3Col, marginTop: '15px' }}>
-          <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
-            <h4>💳 Crear Nueva Tarjeta</h4>
-            <select value={nuevaTarjeta.persona} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })} style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
+        {/* Formularios compactos */}
+        <div style={{ ...styles.grid3Col, marginTop: '12px' }}>
+          
+          {/* Form Ingreso */}
+          <form onSubmit={agregarIngreso} style={styles.cardWhite}>
+            <h4 style={styles.formTitle}>➕ Cargar Ingreso</h4>
+            <select value={nuevoIngreso.persona} onChange={e => setNuevoIngreso({ ...nuevoIngreso, persona: e.target.value })} style={styles.selectFull}>
               <option value="Catriel">Para Catriel</option>
               <option value="Lisandro">Para Lisandro</option>
             </select>
-            <input type="text" placeholder="Nombre (ej. NACION - VISA)" value={nuevaTarjeta.nombre} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })} style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
-            <button type="submit" style={{ ...styles.btnBlue, width: '100%', marginTop: '8px' }}>+ Crear Tarjeta</button>
+            <input type="text" placeholder="Descripción" value={nuevoIngreso.descripcion} onChange={e => setNuevoIngreso({ ...nuevoIngreso, descripcion: e.target.value })} style={styles.inputFull} />
+            <input type="number" placeholder="$ Monto" value={nuevoIngreso.monto} onChange={e => setNuevoIngreso({ ...nuevoIngreso, monto: e.target.value })} style={styles.inputFull} />
+            <button type="submit" style={styles.btnBlueFull}>+ Guardar Ingreso</button>
           </form>
 
-          <div style={styles.cardWhite}>
-            <h4>➕ Cargar Nuevo Ingreso</h4>
-            <select style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
-              <option>Para Catriel</option>
-              <option>Para Lisandro</option>
+          {/* Form Gasto Propio */}
+          <form onSubmit={agregarGastoPropio} style={styles.cardWhite}>
+            <h4 style={styles.formTitle}>➕ Cargar Gasto Propio</h4>
+            <select value={nuevoGastoPropio.persona} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })} style={styles.selectFull}>
+              <option value="Catriel">De Catriel</option>
+              <option value="Lisandro">De Lisandro</option>
             </select>
-            <input type="text" placeholder="Descripción" style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
-          </div>
+            <input type="text" placeholder="Descripción" value={nuevoGastoPropio.descripcion} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, descripcion: e.target.value })} style={styles.inputFull} />
+            <input type="number" placeholder="$ Monto" value={nuevoGastoPropio.monto} onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })} style={styles.inputFull} />
+            <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto</button>
+          </form>
 
-          <div style={styles.cardWhite}>
-            <h4>➕ Cargar Gasto Propio</h4>
-            <select style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
-              <option>De Catriel</option>
-              <option>De Lisandro</option>
+          {/* Form Nueva Tarjeta */}
+          <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
+            <h4 style={styles.formTitle}>💳 Crear Tarjeta</h4>
+            <select value={nuevaTarjeta.persona} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })} style={styles.selectFull}>
+              <option value="Catriel">Para Catriel</option>
+              <option value="Lisandro">Para Lisandro</option>
             </select>
-            <input type="text" placeholder="Descripción" style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
-          </div>
+            <input type="text" placeholder="Nombre (ej: NACION VISA)" value={nuevaTarjeta.nombre} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })} style={styles.inputFull} />
+            <button type="submit" style={styles.btnBlueFull}>+ Crear Tarjeta</button>
+          </form>
+
         </div>
 
       </div>
@@ -519,9 +469,9 @@ export default function App() {
 
 const styles = {
   appContainer: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f8fafc',
     minHeight: '100vh',
-    padding: '20px',
+    padding: '12px 16px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     color: '#334155',
   },
@@ -530,63 +480,58 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: '16px 24px',
-    borderRadius: '16px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-    marginBottom: '20px',
+    padding: '10px 16px',
+    borderRadius: '12px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+    marginBottom: '12px',
   },
-  title: { fontSize: '20px', margin: 0, color: '#0f172a' },
-  subtitle: { fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' },
-  periodSelector: { backgroundColor: '#f8fafc', padding: '8px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' },
-  inputMonth: { border: 'none', background: 'transparent', marginLeft: '6px', fontWeight: 'bold' },
-  mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '16px' },
+  title: { fontSize: '16px', margin: 0, color: '#0f172a' },
+  subtitle: { fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' },
+  periodSelector: { backgroundColor: '#f1f5f9', padding: '4px 8px', borderRadius: '6px', fontSize: '12px' },
+  inputMonth: { border: 'none', background: 'transparent', marginLeft: '4px', fontWeight: 'bold', fontSize: '12px' },
+  mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.1fr 1fr', gap: '10px' },
   
-  columnBlue: { backgroundColor: '#e0f2fe', borderRadius: '16px', padding: '16px', border: '1px solid #38bdf8' },
-  headerBlue: { color: '#0369a1', marginBottom: '12px' },
-  subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  boxLightBlue: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #bae6fd' },
-  cardItemBlue: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #bae6fd' },
+  // Columnas compactas
+  columnBlue: { backgroundColor: '#f0f9ff', borderRadius: '12px', padding: '10px', border: '1px solid #bae6fd' },
+  headerBlue: { color: '#0369a1', marginBottom: '8px', fontSize: '13px' },
+  subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' },
+  boxLightBlue: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #e0f2fe' },
+  cardItemBlue: { backgroundColor: '#fff', padding: '6px 8px', borderRadius: '6px', marginTop: '6px', border: '1px solid #bae6fd' },
 
-  columnYellow: { backgroundColor: '#fef9c3', borderRadius: '16px', padding: '16px', border: '1px solid #fde047' },
-  headerYellow: { color: '#a16207', marginBottom: '12px' },
-  tableYellow: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
-  summaryYellowBox: { backgroundColor: '#fef08a', padding: '12px', borderRadius: '8px', marginTop: '12px' },
+  columnYellow: { backgroundColor: '#fefce8', borderRadius: '12px', padding: '10px', border: '1px solid #fef08a' },
+  headerYellow: { color: '#a16207', marginBottom: '8px', fontSize: '13px' },
+  tableYellow: { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
+  summaryYellowBox: { backgroundColor: '#fef9c3', padding: '8px', borderRadius: '6px', marginTop: '8px', fontSize: '12px' },
 
-  columnGreen: { backgroundColor: '#dcfce7', borderRadius: '16px', padding: '16px', border: '1px solid #4ade80' },
-  headerGreen: { color: '#15803d', marginBottom: '12px' },
-  boxLightGreen: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #bbf7d0' },
-  cardItemGreen: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #bbf7d0' },
+  columnGreen: { backgroundColor: '#f0fdf4', borderRadius: '12px', padding: '10px', border: '1px solid #bbf7d0' },
+  headerGreen: { color: '#15803d', marginBottom: '8px', fontSize: '13px' },
+  boxLightGreen: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #dcfce7' },
+  cardItemGreen: { backgroundColor: '#fff', padding: '6px 8px', borderRadius: '6px', marginTop: '6px', border: '1px solid #bbf7d0' },
 
-  boxTitle: { fontSize: '11px', fontWeight: 'bold', color: '#64748b' },
-  totText: { fontSize: '13px', fontWeight: 'bold', margin: '6px 0 0 0' },
-  montoText: { fontSize: '18px', fontWeight: 'bold', margin: '2px 0' },
-  inputMini: { width: '100%', padding: '4px', fontSize: '11px', borderRadius: '4px', border: '1px solid #cbd5e1' },
-  cardGroupTitle: { fontSize: '13px', fontWeight: 'bold', color: '#0369a1', marginTop: '16px' },
-  cardGroupTitleGreen: { fontSize: '13px', fontWeight: 'bold', color: '#15803d', marginTop: '16px' },
-  emptyText: { fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' },
+  boxTitle: { fontSize: '10px', fontWeight: 'bold', color: '#64748b' },
+  totText: { fontSize: '12px', fontWeight: 'bold', margin: '4px 0 0 0' },
+  montoText: { fontSize: '14px', fontWeight: 'bold', margin: '2px 0' },
+  inputMini: { width: '100%', padding: '2px 4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1' },
+  cardGroupTitle: { fontSize: '11px', fontWeight: 'bold', color: '#0369a1', marginTop: '10px' },
+  cardGroupTitleGreen: { fontSize: '11px', fontWeight: 'bold', color: '#15803d', marginTop: '10px' },
+  emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' },
   rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '6px' },
-  inputFlex: { padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' },
-  btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '8px 12px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px', fontSize: '12px' },
+  inputFlex: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', flex: 1 },
+  btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
 
-  infoRowLightBlue: { backgroundColor: '#e0f2fe', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' },
-  infoRowLightGreen: { backgroundColor: '#dcfce7', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px' },
-  infoRowLightYellow: { backgroundColor: '#fef08a', padding: '8px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '6px' },
-  statusBoxOk: { backgroundColor: '#f8fafc', padding: '10px', borderRadius: '8px', textAlign: 'center', fontSize: '12px', marginTop: '10px', border: '1px solid #e2e8f0' },
+  bottomSection: { marginTop: '12px' },
+  grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' },
+  grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' },
+  cardWhite: { backgroundColor: '#fff', padding: '10px', borderRadius: '10px', border: '1px solid #e2e8f0' },
 
-  bottomSection: { marginTop: '20px' },
-  grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-  grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' },
-  cardWhite: { backgroundColor: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' },
-  boxMiniBlue: { backgroundColor: '#e0f2fe', padding: '10px', borderRadius: '8px', width: '48%' },
-  boxMiniGreen: { backgroundColor: '#dcfce7', padding: '10px', borderRadius: '8px', width: '48%' },
-  boxMiniOrange: { backgroundColor: '#ffedd5', padding: '10px', borderRadius: '8px', width: '48%' },
+  balanceNetoCard: { backgroundColor: '#fff', padding: '10px', borderRadius: '10px', border: '1px solid #0f172a' },
+  balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
+  balanceColGreen: { backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', width: '48%' },
 
-  balanceNetoCard: { backgroundColor: '#fff', padding: '20px', borderRadius: '16px', border: '2px solid #0f172a', marginTop: '20px' },
-  balanceColBlue: { backgroundColor: '#f0f9ff', padding: '14px', borderRadius: '10px', width: '48%' },
-  balanceColGreen: { backgroundColor: '#f0fdf4', padding: '14px', borderRadius: '10px', width: '48%' },
-
-  selectStyle: { padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '13px' },
-  btnPurple: { backgroundColor: '#9333ea', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
-  btnBlue: { backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' },
+  selectStyle: { padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px' },
+  selectFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px', marginTop: '4px' },
+  inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '4px', boxSizing: 'border-box' },
+  btnBlueFull: { width: '100%', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' },
+  formTitle: { fontSize: '12px', margin: '0 0 4px 0', color: '#1e293b' }
 }
