@@ -559,4 +559,4 @@ const styles = {
   // Columna Verde
   columnGreen: { backgroundColor: '#dcfce7', borderRadius: '16px', padding: '16px', border: '1px solid #4ade80' },
   headerGreen: { color: '#15803d', marginBottom: '12px' },
-  boxLightGreen: { backgroundColor: '#fff', padding: '12px
+  boxLightGreen: { backgroundColor: '#fff', padding: '12px }
