@@ -13,8 +13,9 @@ export default function App() {
   const [tarjetas, setTarjetas] = useState([])
   const [consumosTarjetas, setConsumosTarjetas] = useState([])
   const [combustibleManual, setCombustibleManual] = useState([])
+  const [pagosEstado, setPagosEstado] = useState({}) // Estado local/persistente de pagos por ítem (id_periodo -> boolean)
 
-  // ESTADOS FORMULARIOS
+  // FORMULARIOS
   const [nuevoGastoComp, setNuevoGastoComp] = useState({ concepto: '', monto: '' })
   const [nuevoIngreso, setNuevoIngreso] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
@@ -32,9 +33,6 @@ export default function App() {
     quienPagaOption: 'Catriel',
     quienPagaOtro: ''
   })
-
-  // EDICIÓN DE ELEMENTOS
-  const [editando, setEditando] = useState(null) // { tabla, id, campo, valor }
 
   useEffect(() => {
     cargarTodo()
@@ -82,7 +80,7 @@ export default function App() {
     }
   }
 
-  // CALCULO DINÁMICO DE CUOTA SEGÚN MES SELECCIONADO
+  // CÁLCULO DINÁMICO DE CUOTAS
   const calcularCuotaMes = (consumo) => {
     if (!consumo.periodo) return { cuotaActual: consumo.cuota_actual || 1, activa: true }
     
@@ -96,6 +94,16 @@ export default function App() {
     return { cuotaActual: cuotaCalculada, activa }
   }
 
+  // MANEJO DE ESTADO DE PAGO (PAGADO / PENDIENTE)
+  const togglePago = (tipo, id) => {
+    const key = `${tipo}_${id}_${periodo}`
+    setPagosEstado(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const estaPagado = (tipo, id) => {
+    return !!pagosEstado[`${tipo}_${id}_${periodo}`]
+  }
+
   // ACCIONES BASE DE DATOS
 
   const agregarGastoComp = async (e) => {
@@ -104,7 +112,7 @@ export default function App() {
     await supabase.from('gastos_compartidos').insert([{
       concepto: nuevoGastoComp.concepto,
       monto: parseFloat(nuevoGastoComp.monto),
-      periodo
+      periodo: 'fijo'
     }])
     setNuevoGastoComp({ concepto: '', monto: '' })
     cargarTodo()
@@ -197,20 +205,20 @@ export default function App() {
     cargarTodo()
   }
 
-  // FILTRADO DE CONSUMOS ACTIVOS DE TARJETA EN EL MES SELECCIONADO
+  // CONSUMOS ACTIVOS DEL MES
   const consumosActivosMes = consumosTarjetas.map(c => {
     const { cuotaActual, activa } = calcularCuotaMes(c)
     return { ...c, cuotaCalculada: cuotaActual, activa }
   }).filter(c => c.activa)
 
-  // DETECCIÓN AUTOMÁTICA DE COMBUSTIBLES POR PALABRAS CLAVE (YPF, SHELL, AXION)
+  // DETECCIÓN AUTOMÁTICA DE COMBUSTIBLE
   const esCombustible = (desc) => {
     const d = (desc || '').toUpperCase()
     return d.includes('YPF') || d.includes('SHELL') || d.includes('AXION')
   }
 
   // CÁLCULOS GENERALES
-  const totalCompartidos = gastosCompartidos.filter(g => g.periodo === periodo).reduce((acc, item) => acc + Number(item.monto), 0)
+  const totalCompartidos = gastosCompartidos.reduce((acc, item) => acc + Number(item.monto), 0)
   const mitadCompartidos = totalCompartidos / 2
 
   // Ingresos del Mes
@@ -225,7 +233,7 @@ export default function App() {
   const totalGPropLisandro = gPropLisandro.reduce((acc, g) => acc + Number(g.monto), 0)
   const totalGPropCatriel = gPropCatriel.reduce((acc, g) => acc + Number(g.monto), 0)
 
-  // Combustible (Suma Manual + Consumos Automáticos YPF/SHELL/AXION)
+  // Combustible (Manual + Tarjetas YPF/SHELL/AXION)
   const combLisandroManual = combustibleManual.filter(c => c.persona === 'Lisandro' && c.periodo === periodo).reduce((acc, c) => acc + Number(c.monto), 0)
   const combCatrielManual = combustibleManual.filter(c => c.persona === 'Catriel' && c.periodo === periodo).reduce((acc, c) => acc + Number(c.monto), 0)
 
@@ -262,7 +270,7 @@ export default function App() {
     <div style={styles.appWrapper}>
       <div style={styles.appContainer}>
         
-        {/* ENCABEZADO PRINCIPAL */}
+        {/* ENCABEZADO */}
         <div style={styles.topHeader}>
           <div>
             <h1 style={styles.title}>🏠 Dashboard Financiero del Hogar</h1>
@@ -320,22 +328,33 @@ export default function App() {
               {gPropLisandro.length === 0 ? (
                 <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
-                gPropLisandro.map(g => (
-                  <div key={g.id} style={styles.itemDesglosado}>
-                    <span>{g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong></span>
-                    <div>
-                      <button onClick={() => editarItemPrompt('gastos_propios', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
-                      <button onClick={() => borrarItem('gastos_propios', g.id)} style={styles.btnIcon}>🗑️</button>
+                gPropLisandro.map(g => {
+                  const pagado = estaPagado('gpropio', g.id)
+                  return (
+                    <div key={g.id} style={styles.itemDesglosado}>
+                      <span style={{ textDecoration: pagado ? 'line-through' : 'none', opacity: pagado ? 0.6 : 1 }}>
+                        {g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong>
+                      </span>
+                      <div>
+                        <button
+                          onClick={() => togglePago('gpropio', g.id)}
+                          style={{ ...styles.btnBadge, backgroundColor: pagado ? '#22c55e' : '#f59e0b' }}
+                        >
+                          {pagado ? '✅ Pagado' : '⏳ Pendiente'}
+                        </button>
+                        <button onClick={() => editarItemPrompt('gastos_propios', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
+                        <button onClick={() => borrarItem('gastos_propios', g.id)} style={styles.btnIcon}>🗑️</button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
               <p style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', fontWeight: 'bold' }}>
                 Subtotal Propio: ${totalGPropLisandro.toLocaleString()}
               </p>
             </div>
 
-            {/* TARJETAS LISANDRO */}
+            {/* TARJETAS LISANDRO (TABLA DE CONSUMOS COMPLETA) */}
             <div style={styles.cardGroupTitle}>💳 Tarjetas de Lisandro</div>
             {tarjLisandro.length === 0 ? (
               <p style={styles.emptyText}>Sin tarjetas registradas</p>
@@ -345,21 +364,54 @@ export default function App() {
                 const totalResumen = consumosEstaTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                 return (
                   <div key={t.id} style={styles.cardItemBlue}>
-                    <div style={styles.rowFlex}>
+                    <div style={styles.rowFlexTableHeader}>
                       <span>💳 <strong>{t.nombre}</strong></span>
                       <div>
                         <button onClick={() => editarItemPrompt('tarjetas', t.id, 'nombre', t.nombre)} style={styles.btnIcon}>✏️</button>
                         <button onClick={() => borrarItem('tarjetas', t.id)} style={styles.btnIcon}>🗑️</button>
                       </div>
                     </div>
-                    {consumosEstaTarjeta.map(c => (
-                      <div key={c.id} style={styles.itemDesglosadoConsumo}>
-                        <span>{c.descripcion} ({c.cuotaCalculada}/{c.total_cuotas}): <strong>${Number(c.monto_cuota).toLocaleString()}</strong> [{c.quien_paga}]</span>
-                        <button onClick={() => borrarItem('consumos_tarjetas', c.id)} style={styles.btnIcon}>🗑️</button>
-                      </div>
-                    ))}
-                    <p style={{ fontSize: '11px', margin: '4px 0 0 0', color: '#0284c7', textAlign: 'left' }}>
-                      Total Resumen Mes: <strong>${totalResumen.toLocaleString()}</strong>
+
+                    <table style={styles.tableTarjeta}>
+                      <thead>
+                        <tr>
+                          <th>Detalle</th>
+                          <th style={{ textAlign: 'right' }}>Monto</th>
+                          <th style={{ textAlign: 'center' }}>Cuota</th>
+                          <th style={{ textAlign: 'center' }}>Quién</th>
+                          <th style={{ textAlign: 'center' }}>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {consumosEstaTarjeta.length === 0 ? (
+                          <tr><td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8' }}>Sin consumos este mes</td></tr>
+                        ) : (
+                          consumosEstaTarjeta.map(c => {
+                            const pagado = estaPagado('consumo', c.id)
+                            return (
+                              <tr key={c.id} style={{ opacity: pagado ? 0.6 : 1 }}>
+                                <td>{c.descripcion}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(c.monto_cuota).toLocaleString()}</td>
+                                <td style={{ textAlign: 'center' }}>{c.cuotaCalculada}/{c.total_cuotas}</td>
+                                <td style={{ textAlign: 'center' }}>{c.quien_paga}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <button
+                                    onClick={() => togglePago('consumo', c.id)}
+                                    style={{ ...styles.btnBadgeMini, backgroundColor: pagado ? '#22c55e' : '#f59e0b' }}
+                                  >
+                                    {pagado ? '✅' : '⏳'}
+                                  </button>
+                                  <button onClick={() => borrarItem('consumos_tarjetas', c.id)} style={styles.btnIcon}>🗑️</button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+
+                    <p style={{ fontSize: '11px', margin: '6px 0 0 0', color: '#0284c7', textAlign: 'left', fontWeight: 'bold' }}>
+                      Total Resumen Mes: ${totalResumen.toLocaleString()}
                     </p>
                   </div>
                 )
@@ -375,16 +427,25 @@ export default function App() {
             
             <table style={styles.tableYellow}>
               <tbody>
-                {gastosCompartidos.filter(g => g.periodo === periodo).map(g => (
-                  <tr key={g.id}>
-                    <td>{g.concepto}</td>
-                    <td style={{ textAlign: 'right', color: '#b45309', fontWeight: 'bold' }}>
-                      ${Number(g.monto).toLocaleString()}
-                      <button onClick={() => editarItemPrompt('gastos_compartidos', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
-                      <button onClick={() => borrarItem('gastos_compartidos', g.id)} style={styles.btnIcon}>🗑️</button>
-                    </td>
-                  </tr>
-                ))}
+                {gastosCompartidos.map(g => {
+                  const pagado = estaPagado('gcomp', g.id)
+                  return (
+                    <tr key={g.id} style={{ opacity: pagado ? 0.6 : 1 }}>
+                      <td style={{ textDecoration: pagado ? 'line-through' : 'none' }}>{g.concepto}</td>
+                      <td style={{ textAlign: 'right', color: '#b45309', fontWeight: 'bold' }}>
+                        ${Number(g.monto).toLocaleString()}
+                        <button
+                          onClick={() => togglePago('gcomp', g.id)}
+                          style={{ ...styles.btnBadge, backgroundColor: pagado ? '#22c55e' : '#f59e0b', marginLeft: '6px' }}
+                        >
+                          {pagado ? '✅ Pagado' : '⏳ Pendiente'}
+                        </button>
+                        <button onClick={() => editarItemPrompt('gastos_compartidos', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
+                        <button onClick={() => borrarItem('gastos_compartidos', g.id)} style={styles.btnIcon}>🗑️</button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
 
@@ -402,7 +463,7 @@ export default function App() {
             <form onSubmit={agregarGastoComp} style={{ ...styles.rowFlex, gap: '4px', marginTop: '8px' }}>
               <input
                 type="text"
-                placeholder="Ej: Alquiler"
+                placeholder="Ej: Alquiler (Fijo)"
                 value={nuevoGastoComp.concepto}
                 onChange={e => setNuevoGastoComp({ ...nuevoGastoComp, concepto: e.target.value })}
                 style={styles.inputFlex}
@@ -432,43 +493,59 @@ export default function App() {
                 <span>Corresponde pagar a CADA UNO (50%):</span>
                 <strong>${mitadTarjComp.toLocaleString()}</strong>
               </div>
-              <div style={styles.statusBoxOk}>
-                ⚖️ LIQUIDACIÓN DE TARJETAS COMPARTIDAS<br />
-                <strong>¡Las tarjetas compartidas están al día!</strong>
-              </div>
             </div>
 
-            {/* CARGO JUSTO DE TARJETAS (SEPARADO POR TARJETA) */}
+            {/* CARGO JUSTO DE TARJETAS (SEPARACIÓN CLARA POR TARJETA) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#1e293b' }}>📊 Cargo Justo de Tarjetas (Solo Gastos Propios)</h4>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
+                📊 Cargo Justo de Tarjetas (Solo Gastos Propios)
+              </h4>
               <div style={styles.grid2Col}>
-                <div style={styles.boxMiniBlue}>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>LISANDRO (PROPIO)</span>
-                  {tarjLisandro.map(t => {
-                    const propioTarj = consumosActivosMes
-                      .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Lisandro')
-                      .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                    return (
-                      <p key={t.id} style={{ fontSize: '10px', margin: '2px 0' }}>
-                        {t.nombre}: <strong>${propioTarj.toLocaleString()}</strong>
-                      </p>
-                    )
-                  })}
+                
+                {/* LISANDRO */}
+                <div style={styles.boxCargoJustoBlue}>
+                  <h5 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#0369a1', borderBottom: '1px solid #bae6fd', pb: '4px' }}>
+                    LISANDRO (PROPIO)
+                  </h5>
+                  {tarjLisandro.length === 0 ? (
+                    <p style={styles.emptyText}>Sin tarjetas</p>
+                  ) : (
+                    tarjLisandro.map(t => {
+                      const propioTarj = consumosActivosMes
+                        .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Lisandro')
+                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      return (
+                        <div key={t.id} style={styles.rowFlexCargo}>
+                          <span>{t.nombre}:</span>
+                          <strong>${propioTarj.toLocaleString()}</strong>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
 
-                <div style={styles.boxMiniGreen}>
-                  <span style={{ fontSize: '11px', fontWeight: 'bold' }}>CATRIEL (PROPIO)</span>
-                  {tarjCatriel.map(t => {
-                    const propioTarj = consumosActivosMes
-                      .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Catriel')
-                      .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                    return (
-                      <p key={t.id} style={{ fontSize: '10px', margin: '2px 0' }}>
-                        {t.nombre}: <strong>${propioTarj.toLocaleString()}</strong>
-                      </p>
-                    )
-                  })}
+                {/* CATRIEL */}
+                <div style={styles.boxCargoJustoGreen}>
+                  <h5 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#15803d', borderBottom: '1px solid #bbf7d0', pb: '4px' }}>
+                    CATRIEL (PROPIO)
+                  </h5>
+                  {tarjCatriel.length === 0 ? (
+                    <p style={styles.emptyText}>Sin tarjetas</p>
+                  ) : (
+                    tarjCatriel.map(t => {
+                      const propioTarj = consumosActivosMes
+                        .filter(c => c.tarjeta_id === t.id && c.quien_paga === 'Catriel')
+                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      return (
+                        <div key={t.id} style={styles.rowFlexCargo}>
+                          <span>{t.nombre}:</span>
+                          <strong>${propioTarj.toLocaleString()}</strong>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
+
               </div>
             </div>
 
@@ -535,22 +612,33 @@ export default function App() {
               {gPropCatriel.length === 0 ? (
                 <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
-                gPropCatriel.map(g => (
-                  <div key={g.id} style={styles.itemDesglosado}>
-                    <span>{g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong></span>
-                    <div>
-                      <button onClick={() => editarItemPrompt('gastos_propios', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
-                      <button onClick={() => borrarItem('gastos_propios', g.id)} style={styles.btnIcon}>🗑️</button>
+                gPropCatriel.map(g => {
+                  const pagado = estaPagado('gpropio', g.id)
+                  return (
+                    <div key={g.id} style={styles.itemDesglosado}>
+                      <span style={{ textDecoration: pagado ? 'line-through' : 'none', opacity: pagado ? 0.6 : 1 }}>
+                        {g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong>
+                      </span>
+                      <div>
+                        <button
+                          onClick={() => togglePago('gpropio', g.id)}
+                          style={{ ...styles.btnBadge, backgroundColor: pagado ? '#22c55e' : '#f59e0b' }}
+                        >
+                          {pagado ? '✅ Pagado' : '⏳ Pendiente'}
+                        </button>
+                        <button onClick={() => editarItemPrompt('gastos_propios', g.id, 'monto', g.monto)} style={styles.btnIcon}>✏️</button>
+                        <button onClick={() => borrarItem('gastos_propios', g.id)} style={styles.btnIcon}>🗑️</button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
               <p style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', fontWeight: 'bold' }}>
                 Subtotal Propio: ${totalGPropCatriel.toLocaleString()}
               </p>
             </div>
 
-            {/* TARJETAS CATRIEL */}
+            {/* TARJETAS CATRIEL (TABLA DE CONSUMOS COMPLETA) */}
             <div style={styles.cardGroupTitleGreen}>💳 Tarjetas de Catriel</div>
             {tarjCatriel.length === 0 ? (
               <p style={styles.emptyText}>Sin tarjetas registradas</p>
@@ -560,21 +648,54 @@ export default function App() {
                 const totalResumen = consumosEstaTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                 return (
                   <div key={t.id} style={styles.cardItemGreen}>
-                    <div style={styles.rowFlex}>
+                    <div style={styles.rowFlexTableHeader}>
                       <span>💳 <strong>{t.nombre}</strong></span>
                       <div>
                         <button onClick={() => editarItemPrompt('tarjetas', t.id, 'nombre', t.nombre)} style={styles.btnIcon}>✏️</button>
                         <button onClick={() => borrarItem('tarjetas', t.id)} style={styles.btnIcon}>🗑️</button>
                       </div>
                     </div>
-                    {consumosEstaTarjeta.map(c => (
-                      <div key={c.id} style={styles.itemDesglosadoConsumo}>
-                        <span>{c.descripcion} ({c.cuotaCalculada}/{c.total_cuotas}): <strong>${Number(c.monto_cuota).toLocaleString()}</strong> [{c.quien_paga}]</span>
-                        <button onClick={() => borrarItem('consumos_tarjetas', c.id)} style={styles.btnIcon}>🗑️</button>
-                      </div>
-                    ))}
-                    <p style={{ fontSize: '11px', margin: '4px 0 0 0', color: '#16a34a', textAlign: 'left' }}>
-                      Total Resumen Mes: <strong>${totalResumen.toLocaleString()}</strong>
+
+                    <table style={styles.tableTarjeta}>
+                      <thead>
+                        <tr>
+                          <th>Detalle</th>
+                          <th style={{ textAlign: 'right' }}>Monto</th>
+                          <th style={{ textAlign: 'center' }}>Cuota</th>
+                          <th style={{ textAlign: 'center' }}>Quién</th>
+                          <th style={{ textAlign: 'center' }}>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {consumosEstaTarjeta.length === 0 ? (
+                          <tr><td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8' }}>Sin consumos este mes</td></tr>
+                        ) : (
+                          consumosEstaTarjeta.map(c => {
+                            const pagado = estaPagado('consumo', c.id)
+                            return (
+                              <tr key={c.id} style={{ opacity: pagado ? 0.6 : 1 }}>
+                                <td>{c.descripcion}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 'bold' }}>${Number(c.monto_cuota).toLocaleString()}</td>
+                                <td style={{ textAlign: 'center' }}>{c.cuotaCalculada}/{c.total_cuotas}</td>
+                                <td style={{ textAlign: 'center' }}>{c.quien_paga}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <button
+                                    onClick={() => togglePago('consumo', c.id)}
+                                    style={{ ...styles.btnBadgeMini, backgroundColor: pagado ? '#22c55e' : '#f59e0b' }}
+                                  >
+                                    {pagado ? '✅' : '⏳'}
+                                  </button>
+                                  <button onClick={() => borrarItem('consumos_tarjetas', c.id)} style={styles.btnIcon}>🗑️</button>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+
+                    <p style={{ fontSize: '11px', margin: '6px 0 0 0', color: '#16a34a', textAlign: 'left', fontWeight: 'bold' }}>
+                      Total Resumen Mes: ${totalResumen.toLocaleString()}
                     </p>
                   </div>
                 )
@@ -606,7 +727,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* FORMULARIO DE CREGAR CONSUMO CON TARJETA */}
+          {/* FORMULARIO DE CARGAR CONSUMO CON TARJETA */}
           <div style={{ ...styles.cardWhite, border: '2px solid #3b82f6', marginTop: '12px' }}>
             <h4 style={{ color: '#1d4ed8', margin: '0 0 8px 0', fontSize: '13px' }}>💳 Cargar Nuevo Consumo con Tarjeta</h4>
             <form onSubmit={agregarConsumo}>
@@ -795,7 +916,7 @@ export default function App() {
 
 const styles = {
   appWrapper: { backgroundColor: '#f1f5f9', minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '16px 10px' },
-  appContainer: { maxWidth: '1200px', width: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: '#334155' },
+  appContainer: { maxWidth: '1280px', width: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: '#334155' },
   topHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '14px' },
   title: { fontSize: '18px', margin: 0, color: '#0f172a' },
   subtitle: { fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' },
@@ -806,7 +927,7 @@ const styles = {
   headerBlue: { color: '#0369a1', marginBottom: '8px', fontSize: '14px' },
   subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' },
   boxLightBlue: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #bae6fd' },
-  cardItemBlue: { backgroundColor: '#fff', padding: '6px 8px', borderRadius: '6px', marginTop: '6px', border: '1px solid #bae6fd' },
+  cardItemBlue: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #0284c7' },
   columnYellow: { backgroundColor: '#fef9c3', borderRadius: '14px', padding: '12px', border: '1px solid #fde047' },
   headerYellow: { color: '#a16207', marginBottom: '8px', fontSize: '14px' },
   tableYellow: { width: '100%', borderCollapse: 'collapse', fontSize: '12px' },
@@ -814,7 +935,7 @@ const styles = {
   columnGreen: { backgroundColor: '#dcfce7', borderRadius: '14px', padding: '12px', border: '1px solid #4ade80' },
   headerGreen: { color: '#15803d', marginBottom: '8px', fontSize: '14px' },
   boxLightGreen: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0' },
-  cardItemGreen: { backgroundColor: '#fff', padding: '6px 8px', borderRadius: '6px', marginTop: '6px', border: '1px solid #bbf7d0' },
+  cardItemGreen: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #16a34a' },
   boxTitle: { fontSize: '10px', fontWeight: 'bold', color: '#64748b' },
   totText: { fontSize: '12px', fontWeight: 'bold', margin: '2px 0 4px 0' },
   montoText: { fontSize: '15px', fontWeight: 'bold', margin: '2px 0' },
@@ -823,15 +944,21 @@ const styles = {
   cardGroupTitleGreen: { fontSize: '12px', fontWeight: 'bold', color: '#15803d', marginTop: '12px' },
   emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', margin: '4px 0' },
   rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  rowFlexTableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0284c7', color: '#fff', padding: '6px 8px', borderRadius: '4px 4px 0 0', fontSize: '12px' },
+  rowFlexCargo: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0', borderBottom: '1px dashed #e2e8f0' },
   btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '2px', fontSize: '11px' },
+  btnBadge: { border: 'none', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' },
+  btnBadgeMini: { border: 'none', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '9px', cursor: 'pointer' },
   inputFlex: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', flex: 1 },
   btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
   bottomSection: { marginTop: '14px' },
   grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
   grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' },
   cardWhite: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' },
-  boxMiniBlue: { backgroundColor: '#e0f2fe', padding: '6px', borderRadius: '6px', width: '48%' },
-  boxMiniGreen: { backgroundColor: '#dcfce7', padding: '6px', borderRadius: '6px', width: '48%' },
+  boxMiniBlue: { backgroundColor: '#e0f2fe', padding: '8px', borderRadius: '6px', width: '48%' },
+  boxMiniGreen: { backgroundColor: '#dcfce7', padding: '8px', borderRadius: '6px', width: '48%' },
+  boxCargoJustoBlue: { backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', padding: '8px', borderRadius: '6px' },
+  boxCargoJustoGreen: { backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px', borderRadius: '6px' },
   boxMiniOrange: { backgroundColor: '#ffedd5', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', width: '48%' },
   balanceNetoCard: { backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid #0f172a' },
   balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
@@ -841,11 +968,11 @@ const styles = {
   inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '2px', boxSizing: 'border-box' },
   btnBlueFull: { width: '100%', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' },
   formTitle: { fontSize: '12px', margin: '0 0 4px 0', color: '#1e293b' },
-  itemDesglosado: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '2px', backgroundColor: '#f8fafc', padding: '2px 4px', borderRadius: '4px' },
+  itemDesglosado: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '4px', backgroundColor: '#f8fafc', padding: '4px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' },
   itemDesglosadoConsumo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#475569', marginTop: '2px', borderTop: '1px dashed #e2e8f0', paddingTop: '2px' },
   labelMini: { fontSize: '10px', fontWeight: 'bold', color: '#475569', display: 'block' },
   infoRowLightBlue: { backgroundColor: '#e0f2fe', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px' },
   infoRowLightGreen: { backgroundColor: '#dcfce7', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px' },
   infoRowLightYellow: { backgroundColor: '#fef08a', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '4px' },
-  statusBoxOk: { backgroundColor: '#f8fafc', padding: '8px', borderRadius: '8px', textAlign: 'center', fontSize: '11px', marginTop: '8px', border: '1px solid #e2e8f0' }
+  tableTarjeta: { width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', backgroundColor: '#fff' }
 }
