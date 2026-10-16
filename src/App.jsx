@@ -5,7 +5,7 @@ export default function App() {
   const [periodo, setPeriodo] = useState('2026-10')
   const [cargando, setCargando] = useState(true)
 
-  // Datos
+  // Datos de Supabase
   const [ingresos, setIngresos] = useState([])
   const [ahorros, setAhorros] = useState({ Lisandro: 0, Catriel: 0 })
   const [gastosPropios, setGastosPropios] = useState([])
@@ -20,6 +20,17 @@ export default function App() {
   const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
   const [nuevoCombustible, setNuevoCombustible] = useState({ persona: 'Catriel', monto: '' })
+  
+  // Formulario de Consumos de Tarjeta
+  const [nuevoConsumo, setNuevoConsumo] = useState({
+    realiza: 'Catriel',
+    tarjetaId: '',
+    descripcion: '',
+    montoCuota: '',
+    cuotaActual: 1,
+    totalCuotas: 1,
+    quienPaga: 'Catriel'
+  })
 
   useEffect(() => {
     cargarTodo()
@@ -61,30 +72,24 @@ export default function App() {
         setAhorros({ Lisandro: lis, Catriel: cat })
       }
     } catch (e) {
-      console.error('Error al cargar:', e)
+      console.error(e)
     } finally {
       setCargando(false)
     }
   }
 
-  // Guardados en Supabase
+  // OPERACIONES DE GUARDADO Y BORRADO EN SUPABASE
+
   const agregarGastoComp = async (e) => {
     e.preventDefault()
-    if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) {
-      alert('Ingresá el concepto y el monto para el gasto compartido.')
-      return
-    }
-    const { error } = await supabase.from('gastos_compartidos').insert([{
+    if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
+    await supabase.from('gastos_compartidos').insert([{
       concepto: nuevoGastoComp.concepto,
       monto: parseFloat(nuevoGastoComp.monto),
       periodo
     }])
-    if (error) {
-      alert('Error de Supabase: ' + error.message)
-    } else {
-      setNuevoGastoComp({ concepto: '', monto: '' })
-      cargarTodo()
-    }
+    setNuevoGastoComp({ concepto: '', monto: '' })
+    cargarTodo()
   }
 
   const borrarGastoComp = async (id) => {
@@ -94,64 +99,93 @@ export default function App() {
 
   const agregarIngreso = async (e) => {
     e.preventDefault()
-    if (!nuevoIngreso.descripcion || !nuevoIngreso.monto) {
-      alert('Completá la descripción y el monto del ingreso.')
-      return
-    }
-    const { error } = await supabase.from('ingresos').insert([{
+    if (!nuevoIngreso.descripcion || !nuevoIngreso.monto) return
+    await supabase.from('ingresos').insert([{
       persona: nuevoIngreso.persona,
       descripcion: nuevoIngreso.descripcion,
       monto: parseFloat(nuevoIngreso.monto),
       periodo
     }])
-    if (error) {
-      alert('Error al guardar ingreso: ' + error.message)
-    } else {
-      alert('¡Ingreso guardado con éxito!')
-      setNuevoIngreso({ persona: nuevoIngreso.persona, descripcion: '', monto: '' })
-      cargarTodo()
-    }
+    setNuevoIngreso({ persona: nuevoIngreso.persona, descripcion: '', monto: '' })
+    cargarTodo()
+  }
+
+  const borrarIngreso = async (id) => {
+    await supabase.from('ingresos').delete().eq('id', id)
+    cargarTodo()
   }
 
   const agregarGastoPropio = async (e) => {
     e.preventDefault()
-    if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) {
-      alert('Completá la descripción y el monto del gasto propio.')
-      return
-    }
-    const { error } = await supabase.from('gastos_propios').insert([{
+    if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
+    await supabase.from('gastos_propios').insert([{
       persona: nuevoGastoPropio.persona,
       descripcion: nuevoGastoPropio.descripcion,
       monto: parseFloat(nuevoGastoPropio.monto),
       periodo
     }])
+    setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
+    cargarTodo()
+  }
+
+  const borrarGastoPropio = async (id) => {
+    await supabase.from('gastos_propios').delete().eq('id', id)
+    cargarTodo()
+  }
+
+  const agregarTarjeta = async (e) => {
+    e.preventDefault()
+    if (!nuevaTarjeta.nombre) return
+    await supabase.from('tarjetas').insert([nuevaTarjeta])
+    setNuevaTarjeta({ persona: nuevaTarjeta.persona, nombre: '' })
+    cargarTodo()
+  }
+
+  const borrarTarjeta = async (id) => {
+    await supabase.from('tarjetas').delete().eq('id', id)
+    cargarTodo()
+  }
+
+  const agregarConsumo = async (e) => {
+    e.preventDefault()
+    if (!nuevoConsumo.tarjetaId || !nuevoConsumo.montoCuota) {
+      alert('Seleccioná la tarjeta e ingresá el monto por cuota.')
+      return
+    }
+    const { error } = await supabase.from('consumos_tarjetas').insert([{
+      tarjeta_id: parseInt(nuevoConsumo.tarjetaId),
+      realiza: nuevoConsumo.realiza,
+      descripcion: nuevoConsumo.descripcion || 'Sin descripción',
+      monto_cuota: parseFloat(nuevoConsumo.montoCuota),
+      cuota_actual: parseInt(nuevoConsumo.cuotaActual) || 1,
+      total_cuotas: parseInt(nuevoConsumo.totalCuotas) || 1,
+      quien_paga: nuevoConsumo.quienPaga,
+      periodo
+    }])
     if (error) {
-      alert('Error al guardar gasto propio: ' + error.message)
+      alert('Error al guardar consumo: ' + error.message)
     } else {
-      alert('¡Gasto propio guardado!')
-      setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
+      alert('¡Consumo de tarjeta registrado!')
+      setNuevoConsumo({ ...nuevoConsumo, descripcion: '', montoCuota: '' })
       cargarTodo()
     }
   }
 
+  const borrarConsumo = async (id) => {
+    await supabase.from('consumos_tarjetas').delete().eq('id', id)
+    cargarTodo()
+  }
+
   const agregarCombustible = async (e) => {
     e.preventDefault()
-    if (!nuevoCombustible.monto) {
-      alert('Ingresá el monto de combustible.')
-      return
-    }
-    const { error } = await supabase.from('combustible').insert([{
+    if (!nuevoCombustible.monto) return
+    await supabase.from('combustible').insert([{
       persona: nuevoCombustible.persona,
       monto: parseFloat(nuevoCombustible.monto),
       periodo
     }])
-    if (error) {
-      alert('Error en combustible: ' + error.message)
-    } else {
-      alert('¡Combustible registrado!')
-      setNuevoCombustible({ persona: nuevoCombustible.persona, monto: '' })
-      cargarTodo()
-    }
+    setNuevoCombustible({ persona: nuevoCombustible.persona, monto: '' })
+    cargarTodo()
   }
 
   const guardarAhorro = async (persona, monto) => {
@@ -159,48 +193,47 @@ export default function App() {
     cargarTodo()
   }
 
-  const agregarTarjeta = async (e) => {
-    e.preventDefault()
-    if (!nuevaTarjeta.nombre) {
-      alert('Ingresá el nombre de la tarjeta.')
-      return
-    }
-    const { error } = await supabase.from('tarjetas').insert([nuevaTarjeta])
-    if (error) {
-      alert('Error al crear tarjeta: ' + error.message)
-    } else {
-      alert('¡Tarjeta creada!')
-      setNuevaTarjeta({ persona: nuevaTarjeta.persona, nombre: '' })
-      cargarTodo()
-    }
-  }
-
-  // Cálculos
+  // CÁLCULOS Y SEPARACIONES POR PERSONA
   const totalCompartidos = gastosCompartidos.reduce((acc, item) => acc + Number(item.monto), 0)
   const mitadCompartidos = totalCompartidos / 2
 
-  const ingresosLisandro = ingresos.filter(i => i.persona === 'Lisandro').reduce((acc, i) => acc + Number(i.monto), 0)
-  const ingresosCatriel = ingresos.filter(i => i.persona === 'Catriel').reduce((acc, i) => acc + Number(i.monto), 0)
+  // Ingresos
+  const ingLisandro = ingresos.filter(i => i.persona === 'Lisandro')
+  const ingCatriel = ingresos.filter(i => i.persona === 'Catriel')
+  const totalIngLisandro = ingLisandro.reduce((acc, i) => acc + Number(i.monto), 0)
+  const totalIngCatriel = ingCatriel.reduce((acc, i) => acc + Number(i.monto), 0)
 
-  const gastosPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro').reduce((acc, g) => acc + Number(g.monto), 0)
-  const gastosPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel').reduce((acc, g) => acc + Number(g.monto), 0)
+  // Gastos Propios
+  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro')
+  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel')
+  const totalGPropLisandro = gPropLisandro.reduce((acc, g) => acc + Number(g.monto), 0)
+  const totalGPropCatriel = gPropCatriel.reduce((acc, g) => acc + Number(g.monto), 0)
 
+  // Combustible
   const combustibleLisandro = combustible.filter(c => c.persona === 'Lisandro').reduce((acc, c) => acc + Number(c.monto), 0)
   const combustibleCatriel = combustible.filter(c => c.persona === 'Catriel').reduce((acc, c) => acc + Number(c.monto), 0)
 
+  // Tarjetas
   const tarjLisandro = tarjetas.filter(t => t.persona === 'Lisandro')
   const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
 
-  const totalTarjLisandro = consumosTarjetas
-    .filter(c => tarjLisandro.some(t => t.id === c.tarjeta_id))
-    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+  // Tarjetas filtradas según quién realiza el gasto para el formulario
+  const tarjetasParaFormulario = tarjetas.filter(t => t.persona === nuevoConsumo.realiza)
 
-  const totalTarjCatriel = consumosTarjetas
-    .filter(c => tarjCatriel.some(t => t.id === c.tarjeta_id))
-    .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+  // Consumos propios de tarjeta (Cargo Justo)
+  const consumosLisandroPropio = consumosTarjetas.filter(c => {
+    const perteneceALisandro = tarjLisandro.some(t => t.id === c.tarjeta_id)
+    return perteneceALisandro && c.quien_paga === 'Lisandro'
+  }).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
-  const dispLisandro = ingresosLisandro - (mitadCompartidos + gastosPropLisandro + ahorros.Lisandro)
-  const dispCatriel = ingresosCatriel - (mitadCompartidos + gastosPropCatriel + ahorros.Catriel)
+  const consumosCatrielPropio = consumosTarjetas.filter(c => {
+    const perteneceACatriel = tarjCatriel.some(t => t.id === c.tarjeta_id)
+    return perteneceACatriel && c.quien_paga === 'Catriel'
+  }).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
+  // Disponibles finales
+  const dispLisandro = totalIngLisandro - (mitadCompartidos + totalGPropLisandro + ahorros.Lisandro + consumosLisandroPropio)
+  const dispCatriel = totalIngCatriel - (mitadCompartidos + totalGPropCatriel + ahorros.Catriel + consumosCatrielPropio)
 
   return (
     <div style={styles.appWrapper}>
@@ -222,7 +255,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Grid 3 Columnas */}
+        {/* GRID PRINCIPAL DE 3 COLUMNAS */}
         <div style={styles.mainGrid}>
           
           {/* LISANDRO */}
@@ -230,10 +263,17 @@ export default function App() {
             <div style={styles.headerBlue}>
               <h2>👤 LISANDRO</h2>
             </div>
+            
             <div style={styles.subGrid}>
               <div style={styles.boxLightBlue}>
-                <span style={styles.boxTitle}>INGRESOS</span>
-                <p style={styles.totText}>Tot: ${ingresosLisandro.toLocaleString()}</p>
+                <span style={styles.boxTitle}>💵 INGRESOS</span>
+                <p style={styles.totText}>Tot: ${totalIngLisandro.toLocaleString()}</p>
+                {ingLisandro.map(i => (
+                  <div key={i.id} style={styles.itemDesglosado}>
+                    <span>{i.descripcion}: <strong>${Number(i.monto).toLocaleString()}</strong></span>
+                    <button onClick={() => borrarIngreso(i.id)} style={styles.btnIcon}>🗑️</button>
+                  </div>
+                ))}
               </div>
               <div style={styles.boxLightBlue}>
                 <span style={styles.boxTitle}>🐷 AHORRO</span>
@@ -246,24 +286,51 @@ export default function App() {
                 />
               </div>
             </div>
+
+            {/* DESGLOSE GASTOS PROPIOS LISANDRO */}
             <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO</span>
-              <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
-                Subtotal Propio: <strong>${gastosPropLisandro.toLocaleString()}</strong>
+              <span style={styles.boxTitle}>🛍️ GASTOS PROPIOS LISANDRO</span>
+              {gPropLisandro.length === 0 ? (
+                <p style={styles.emptyText}>Sin gastos propios</p>
+              ) : (
+                gPropLisandro.map(g => (
+                  <div key={g.id} style={styles.itemDesglosado}>
+                    <span>{g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong></span>
+                    <button onClick={() => borrarGastoPropio(g.id)} style={styles.btnIcon}>🗑️</button>
+                  </div>
+                ))
+              )}
+              <p style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', borderTop: '1px solid #bae6fd', paddingTop: '4px' }}>
+                Subtotal Propio: <strong>${totalGPropLisandro.toLocaleString()}</strong>
               </p>
             </div>
+
+            {/* TARJETAS LISANDRO */}
             <div style={styles.cardGroupTitle}>💳 Tarjetas de Lisandro</div>
             {tarjLisandro.length === 0 ? (
-              <p style={styles.emptyText}>Sin tarjetas</p>
+              <p style={styles.emptyText}>Sin tarjetas registradas</p>
             ) : (
-              tarjLisandro.map(t => (
-                <div key={t.id} style={styles.cardItemBlue}>
-                  <span>💳 <strong>{t.nombre}</strong></span>
-                  <p style={{ fontSize: '11px', margin: '2px 0 0 0', color: '#64748b' }}>
-                    Resumen Mes: <strong>${totalTarjLisandro.toLocaleString()}</strong>
-                  </p>
-                </div>
-              ))
+              tarjLisandro.map(t => {
+                const consumosEstaTarjeta = consumosTarjetas.filter(c => c.tarjeta_id === t.id)
+                const totalResumen = consumosEstaTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                return (
+                  <div key={t.id} style={styles.cardItemBlue}>
+                    <div style={styles.rowFlex}>
+                      <span>💳 <strong>{t.nombre}</strong></span>
+                      <button onClick={() => borrarTarjeta(t.id)} style={styles.btnIcon}>🗑️</button>
+                    </div>
+                    {consumosEstaTarjeta.map(c => (
+                      <div key={c.id} style={styles.itemDesglosadoConsumo}>
+                        <span>{c.descripcion} ({c.cuota_actual}/{c.total_cuotas}): <strong>${Number(c.monto_cuota).toLocaleString()}</strong> [{c.quien_paga}]</span>
+                        <button onClick={() => borrarConsumo(c.id)} style={styles.btnIcon}>🗑️</button>
+                      </div>
+                    ))}
+                    <p style={{ fontSize: '11px', margin: '4px 0 0 0', color: '#0284c7', textAlign: 'right', fontWeight: 'bold' }}>
+                      Total Resumen: ${totalResumen.toLocaleString()}
+                    </p>
+                  </div>
+                )
+              })
             )}
           </div>
 
@@ -328,7 +395,13 @@ export default function App() {
             <div style={styles.subGrid}>
               <div style={styles.boxLightGreen}>
                 <span style={styles.boxTitle}>💵 INGRESOS</span>
-                <p style={styles.totText}>Tot: ${ingresosCatriel.toLocaleString()}</p>
+                <p style={styles.totText}>Tot: ${totalIngCatriel.toLocaleString()}</p>
+                {ingCatriel.map(i => (
+                  <div key={i.id} style={styles.itemDesglosado}>
+                    <span>{i.descripcion}: <strong>${Number(i.monto).toLocaleString()}</strong></span>
+                    <button onClick={() => borrarIngreso(i.id)} style={styles.btnIcon}>🗑️</button>
+                  </div>
+                ))}
               </div>
               <div style={styles.boxLightGreen}>
                 <span style={styles.boxTitle}>🐷 AHORRO</span>
@@ -341,37 +414,82 @@ export default function App() {
                 />
               </div>
             </div>
+
+            {/* DESGLOSE GASTOS PROPIOS CATRIEL */}
             <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL</span>
-              <p style={{ textAlign: 'right', marginTop: '4px', fontSize: '12px' }}>
-                Subtotal Propio: <strong>${gastosPropCatriel.toLocaleString()}</strong>
+              <span style={styles.boxTitle}>🛍️ GASTOS PROPIOS CATRIEL</span>
+              {gPropCatriel.length === 0 ? (
+                <p style={styles.emptyText}>Sin gastos propios</p>
+              ) : (
+                gPropCatriel.map(g => (
+                  <div key={g.id} style={styles.itemDesglosado}>
+                    <span>{g.descripcion}: <strong>${Number(g.monto).toLocaleString()}</strong></span>
+                    <button onClick={() => borrarGastoPropio(g.id)} style={styles.btnIcon}>🗑️</button>
+                  </div>
+                ))
+              )}
+              <p style={{ textAlign: 'right', marginTop: '6px', fontSize: '12px', borderTop: '1px solid #bbf7d0', paddingTop: '4px' }}>
+                Subtotal Propio: <strong>${totalGPropCatriel.toLocaleString()}</strong>
               </p>
             </div>
+
+            {/* TARJETAS CATRIEL */}
             <div style={styles.cardGroupTitleGreen}>💳 Tarjetas de Catriel</div>
             {tarjCatriel.length === 0 ? (
-              <p style={styles.emptyText}>Sin tarjetas</p>
+              <p style={styles.emptyText}>Sin tarjetas registradas</p>
             ) : (
-              tarjCatriel.map(t => (
-                <div key={t.id} style={styles.cardItemGreen}>
-                  <span>💳 <strong>{t.nombre}</strong></span>
-                  <p style={{ fontSize: '11px', margin: '2px 0 0 0', color: '#64748b' }}>
-                    Resumen Mes: <strong>${totalTarjCatriel.toLocaleString()}</strong>
-                  </p>
-                </div>
-              ))
+              tarjCatriel.map(t => {
+                const consumosEstaTarjeta = consumosTarjetas.filter(c => c.tarjeta_id === t.id)
+                const totalResumen = consumosEstaTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                return (
+                  <div key={t.id} style={styles.cardItemGreen}>
+                    <div style={styles.rowFlex}>
+                      <span>💳 <strong>{t.nombre}</strong></span>
+                      <button onClick={() => borrarTarjeta(t.id)} style={styles.btnIcon}>🗑️</button>
+                    </div>
+                    {consumosEstaTarjeta.map(c => (
+                      <div key={c.id} style={styles.itemDesglosadoConsumo}>
+                        <span>{c.descripcion} ({c.cuota_actual}/{c.total_cuotas}): <strong>${Number(c.monto_cuota).toLocaleString()}</strong> [{c.quien_paga}]</span>
+                        <button onClick={() => borrarConsumo(c.id)} style={styles.btnIcon}>🗑️</button>
+                      </div>
+                    ))}
+                    <p style={{ fontSize: '11px', margin: '4px 0 0 0', color: '#16a34a', textAlign: 'right', fontWeight: 'bold' }}>
+                      Total Resumen: ${totalResumen.toLocaleString()}
+                    </p>
+                  </div>
+                )
+              })
             )}
           </div>
         </div>
 
-        {/* Inferiores */}
+        {/* SECCIONES INFERIORES */}
         <div style={styles.bottomSection}>
+          
+          {/* CARGO JUSTO Y COMBUSTIBLE */}
           <div style={styles.grid2Col}>
+            
+            {/* Cargo Justo Tarjetas */}
+            <div style={styles.cardWhite}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '13px' }}>📊 Cargo Justo de Tarjetas (Solo Gastos Propios)</h4>
+              <div style={styles.rowFlex}>
+                <div style={styles.boxMiniBlue}>
+                  <span style={{ fontSize: '11px' }}>LISANDRO (PROPIO)</span>
+                  <p style={{ fontSize: '15px', fontWeight: 'bold', color: '#0284c7', margin: '2px 0' }}>${consumosLisandroPropio.toLocaleString()}</p>
+                </div>
+                <div style={styles.boxMiniGreen}>
+                  <span style={{ fontSize: '11px' }}>CATRIEL (PROPIO)</span>
+                  <p style={{ fontSize: '15px', fontWeight: 'bold', color: '#16a34a', margin: '2px 0' }}>${consumosCatrielPropio.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
             {/* Combustible */}
             <div style={{ ...styles.cardWhite, border: '1px solid #fdba74' }}>
               <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
               <div style={styles.rowFlex}>
-                <div style={styles.boxMiniOrange}>Combustible Lisandro: <strong>${combustibleLisandro.toLocaleString()}</strong></div>
-                <div style={styles.boxMiniOrange}>Combustible Catriel: <strong>${combustibleCatriel.toLocaleString()}</strong></div>
+                <div style={styles.boxMiniOrange}>Lisandro: <strong>${combustibleLisandro.toLocaleString()}</strong></div>
+                <div style={styles.boxMiniOrange}>Catriel: <strong>${combustibleCatriel.toLocaleString()}</strong></div>
               </div>
               <form onSubmit={agregarCombustible} style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
                 <select value={nuevoCombustible.persona} onChange={e => setNuevoCombustible({ ...nuevoCombustible, persona: e.target.value })} style={styles.selectStyle}>
@@ -388,28 +506,120 @@ export default function App() {
                 <button type="submit" style={styles.btnOrange}>+ Cargar</button>
               </form>
             </div>
+          </div>
 
-            {/* Balance Neto */}
-            <div style={styles.balanceNetoCard}>
-              <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px' }}>💰 BALANCE NETO DEL MES</h3>
-              <div style={styles.rowFlex}>
-                <div style={styles.balanceColBlue}>
-                  <h4 style={{ color: '#0284c7', margin: 0, fontSize: '12px' }}>LISANDRO</h4>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>Ingresos: ${ingresosLisandro.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>Gastos: ${mitadCompartidos.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
-                </div>
-                <div style={styles.balanceColGreen}>
-                  <h4 style={{ color: '#16a34a', margin: 0, fontSize: '12px' }}>CATRIEL</h4>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>Ingresos: ${ingresosCatriel.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>Gastos: ${mitadCompartidos.toLocaleString()}</p>
-                  <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong></p>
-                </div>
+          {/* BALANCE NETO DEL MES */}
+          <div style={{ ...styles.balanceNetoCard, marginTop: '12px' }}>
+            <h3 style={{ textAlign: 'center', margin: '0 0 8px 0', fontSize: '14px' }}>💰 BALANCE NETO DEL MES</h3>
+            <div style={styles.rowFlex}>
+              <div style={styles.balanceColBlue}>
+                <h4 style={{ color: '#0284c7', margin: 0, fontSize: '12px' }}>LISANDRO</h4>
+                <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: ${totalIngLisandro.toLocaleString()}</p>
+                <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos: ${(mitadCompartidos + totalGPropLisandro + consumosLisandroPropio).toLocaleString()}</p>
+                <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
+              </div>
+              <div style={styles.balanceColGreen}>
+                <h4 style={{ color: '#16a34a', margin: 0, fontSize: '12px' }}>CATRIEL</h4>
+                <p style={{ margin: '2px 0', fontSize: '11px' }}>Ingresos: ${totalIngCatriel.toLocaleString()}</p>
+                <p style={{ margin: '2px 0', fontSize: '11px' }}>Gastos: ${(mitadCompartidos + totalGPropCatriel + consumosCatrielPropio).toLocaleString()}</p>
+                <p style={{ margin: '2px 0', fontSize: '12px' }}>DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong></p>
               </div>
             </div>
           </div>
 
-          {/* Formularios de la fila inferior */}
+          {/* FORMULARIO DE CONSUMOS CON TARJETA (COMPLETO) */}
+          <div style={{ ...styles.cardWhite, border: '2px solid #3b82f6', marginTop: '12px' }}>
+            <h4 style={{ color: '#1d4ed8', margin: '0 0 8px 0', fontSize: '13px' }}>💳 Cargar Nuevo Consumo con Tarjeta</h4>
+            <form onSubmit={agregarConsumo}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr 1fr 0.8fr 0.8fr 1fr', gap: '6px', alignItems: 'center' }}>
+                
+                <div>
+                  <label style={styles.labelMini}>1. Titular Tarjeta:</label>
+                  <select
+                    value={nuevoConsumo.realiza}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, realiza: e.target.value, tarjetaId: '' })}
+                    style={styles.selectFull}
+                  >
+                    <option value="Catriel">Catriel</option>
+                    <option value="Lisandro">Lisandro</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>2. Tarjeta:</label>
+                  <select
+                    value={nuevoConsumo.tarjetaId}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, tarjetaId: e.target.value })}
+                    style={styles.selectFull}
+                  >
+                    <option value="">-- Seleccionar --</option>
+                    {tarjetasParaFormulario.map(t => (
+                      <option key={t.id} value={t.id}>{t.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>3. Descripción:</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Súper / Zapatillas"
+                    value={nuevoConsumo.descripcion}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, descripcion: e.target.value })}
+                    style={styles.inputFull}
+                  />
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>4. $ Monto Cuota:</label>
+                  <input
+                    type="number"
+                    placeholder="$ Cuota"
+                    value={nuevoConsumo.montoCuota}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, montoCuota: e.target.value })}
+                    style={styles.inputFull}
+                  />
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>Cuota Actual:</label>
+                  <input
+                    type="number"
+                    value={nuevoConsumo.cuotaActual}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, cuotaActual: e.target.value })}
+                    style={styles.inputFull}
+                  />
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>Total Cuotas:</label>
+                  <input
+                    type="number"
+                    value={nuevoConsumo.totalCuotas}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, totalCuotas: e.target.value })}
+                    style={styles.inputFull}
+                  />
+                </div>
+
+                <div>
+                  <label style={styles.labelMini}>5. ¿Quién paga?:</label>
+                  <select
+                    value={nuevoConsumo.quienPaga}
+                    onChange={e => setNuevoConsumo({ ...nuevoConsumo, quienPaga: e.target.value })}
+                    style={styles.selectFull}
+                  >
+                    <option value="Catriel">Catriel</option>
+                    <option value="Lisandro">Lisandro</option>
+                    <option value="Compartido">Compartido</option>
+                  </select>
+                </div>
+
+              </div>
+              <button type="submit" style={{ ...styles.btnBlueFull, marginTop: '8px' }}>+ Cargar Consumo de Tarjeta</button>
+            </form>
+          </div>
+
+          {/* FORMULARIOS DE CREADOR DE TARJETAS, INGRESOS Y GASTOS PROPIOS */}
           <div style={{ ...styles.grid3Col, marginTop: '12px' }}>
             
             {/* Form Ingresos */}
@@ -425,7 +635,7 @@ export default function App() {
               </select>
               <input
                 type="text"
-                placeholder="Descripción"
+                placeholder="Descripción (ej. Sueldo)"
                 value={nuevoIngreso.descripcion}
                 onChange={e => setNuevoIngreso({ ...nuevoIngreso, descripcion: e.target.value })}
                 style={styles.inputFull}
@@ -453,7 +663,7 @@ export default function App() {
               </select>
               <input
                 type="text"
-                placeholder="Descripción"
+                placeholder="Descripción (ej. Ropa)"
                 value={nuevoGastoPropio.descripcion}
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, descripcion: e.target.value })}
                 style={styles.inputFull}
@@ -470,7 +680,7 @@ export default function App() {
 
             {/* Form Tarjetas */}
             <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
-              <h4 style={styles.formTitle}>💳 Crear Tarjeta</h4>
+              <h4 style={styles.formTitle}>💳 Crear Nueva Tarjeta</h4>
               <select
                 value={nuevaTarjeta.persona}
                 onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })}
@@ -481,7 +691,7 @@ export default function App() {
               </select>
               <input
                 type="text"
-                placeholder="Nombre (ej: NACION VISA)"
+                placeholder="Nombre (ej. NACION VISA)"
                 value={nuevaTarjeta.nombre}
                 onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })}
                 style={styles.inputFull}
@@ -490,6 +700,7 @@ export default function App() {
             </form>
 
           </div>
+
         </div>
       </div>
     </div>
@@ -519,27 +730,32 @@ const styles = {
   boxLightGreen: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0' },
   cardItemGreen: { backgroundColor: '#fff', padding: '6px 8px', borderRadius: '6px', marginTop: '6px', border: '1px solid #bbf7d0' },
   boxTitle: { fontSize: '10px', fontWeight: 'bold', color: '#64748b' },
-  totText: { fontSize: '12px', fontWeight: 'bold', margin: '4px 0 0 0' },
+  totText: { fontSize: '12px', fontWeight: 'bold', margin: '2px 0 4px 0' },
   montoText: { fontSize: '15px', fontWeight: 'bold', margin: '2px 0' },
   inputMini: { width: '100%', padding: '2px 4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1' },
   cardGroupTitle: { fontSize: '12px', fontWeight: 'bold', color: '#0369a1', marginTop: '12px' },
   cardGroupTitleGreen: { fontSize: '12px', fontWeight: 'bold', color: '#15803d', marginTop: '12px' },
-  emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' },
+  emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', margin: '4px 0' },
   rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px', fontSize: '12px' },
+  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px', fontSize: '11px' },
   inputFlex: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', flex: 1 },
   btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
   bottomSection: { marginTop: '14px' },
   grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
   grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' },
   cardWhite: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' },
+  boxMiniBlue: { backgroundColor: '#e0f2fe', padding: '8px', borderRadius: '6px', width: '48%' },
+  boxMiniGreen: { backgroundColor: '#dcfce7', padding: '8px', borderRadius: '6px', width: '48%' },
   boxMiniOrange: { backgroundColor: '#ffedd5', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', width: '48%' },
   balanceNetoCard: { backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid #0f172a' },
   balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
   balanceColGreen: { backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', width: '48%' },
   selectStyle: { padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px' },
-  selectFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px', marginTop: '4px' },
-  inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '4px', boxSizing: 'border-box' },
+  selectFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px', marginTop: '2px' },
+  inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '2px', boxSizing: 'border-box' },
   btnBlueFull: { width: '100%', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' },
-  formTitle: { fontSize: '12px', margin: '0 0 4px 0', color: '#1e293b' }
+  formTitle: { fontSize: '12px', margin: '0 0 4px 0', color: '#1e293b' },
+  itemDesglosado: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '2px', backgroundColor: '#f8fafc', padding: '2px 4px', borderRadius: '4px' },
+  itemDesglosadoConsumo: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#475569', marginTop: '2px', borderTop: '1px dashed #e2e8f0', paddingTop: '2px' },
+  labelMini: { fontSize: '10px', fontWeight: 'bold', color: '#475569', display: 'block' }
 }
