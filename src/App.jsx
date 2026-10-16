@@ -424,10 +424,139 @@ export default function App() {
               <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p>
               <p>Ahorro: <strong>${ahorros.Lisandro.toLocaleString()}</strong></p>
               <hr />
-              <p style={{ fontSize: '15px' }}>DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong></p>
+              <p style={{ fontSize: '15px' }}>
+                DISPONIBLE: <strong style={{ color: dispLisandro < 0 ? '#ef4444' : '#22c55e' }}>${dispLisandro.toLocaleString()}</strong>
+              </p>
             </div>
 
             <div style={styles.balanceColGreen}>
               <h4 style={{ color: '#16a34a', margin: '0 0 8px 0' }}>CATRIEL</h4>
               <p>Ingresos: <strong>${ingresosCatriel.toLocaleString()}</strong></p>
-              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p
+              <p>Gastos: <strong style={{ color: '#ef4444' }}>${mitadCompartidos.toLocaleString()}</strong></p>
+              <p>Ahorro: <strong>${ahorros.Catriel.toLocaleString()}</strong></p>
+              <hr />
+              <p style={{ fontSize: '15px' }}>
+                DISPONIBLE: <strong style={{ color: dispCatriel < 0 ? '#ef4444' : '#22c55e' }}>${dispCatriel.toLocaleString()}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* FORMULARIOS DE CARGA */}
+        <div style={{ ...styles.cardWhite, border: '2px solid #c084fc', marginTop: '20px' }}>
+          <h4 style={{ color: '#7e22ce' }}>🏛️ Cargar Nuevo Préstamo / Crédito</h4>
+          <form onSubmit={agregarPrestamo} style={{ ...styles.rowFlex, gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+            <input type="text" placeholder="Entidad (ej: Banco Hipotecario)" value={nuevoPrestamo.entidad} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, entidad: e.target.value })} style={styles.inputFlex} />
+            <input type="number" placeholder="$ Cuota" value={nuevoPrestamo.montoCuota} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, montoCuota: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '100px' }} />
+            <input type="number" value={nuevoPrestamo.cuotaActual} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, cuotaActual: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '60px' }} />
+            <input type="number" value={nuevoPrestamo.totalCuotas} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, totalCuotas: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '60px' }} />
+            <select value={nuevoPrestamo.tipo} onChange={e => setNuevoPrestamo({ ...nuevoPrestamo, tipo: e.target.value })} style={styles.selectStyle}>
+              <option value="Compartido (Centro)">Compartido (Centro)</option>
+              <option value="Lisandro">Lisandro</option>
+              <option value="Catriel">Catriel</option>
+            </select>
+            <button type="submit" style={styles.btnPurple}>+ Cargar Préstamo</button>
+          </form>
+        </div>
+
+        <div style={{ ...styles.cardWhite, marginTop: '15px' }}>
+          <h4>💳 Cargar Nuevo Consumo con Tarjeta</h4>
+          <form onSubmit={agregarConsumo} style={{ marginTop: '10px' }}>
+            <div style={{ ...styles.rowFlex, gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+              <span>1. ¿Quién realiza el gasto?:</span>
+              <select value={nuevoConsumo.realiza} onChange={e => setNuevoConsumo({ ...nuevoConsumo, realiza: e.target.value })} style={styles.selectStyle}>
+                <option value="Catriel">Catriel</option>
+                <option value="Lisandro">Lisandro</option>
+              </select>
+
+              <span>2. Elegir Tarjeta:</span>
+              <select value={nuevoConsumo.tarjetaId} onChange={e => setNuevoConsumo({ ...nuevoConsumo, tarjetaId: e.target.value })} style={styles.selectStyle}>
+                <option value="">-- Seleccionar --</option>
+                {tarjetas.map(t => <option key={t.id} value={t.id}>{t.persona} - {t.nombre}</option>)}
+              </select>
+            </div>
+
+            <div style={{ ...styles.rowFlex, gap: '8px', flexWrap: 'wrap' }}>
+              <input type="text" placeholder="Descripción del gasto" value={nuevoConsumo.descripcion} onChange={e => setNuevoConsumo({ ...nuevoConsumo, descripcion: e.target.value })} style={styles.inputFlex} />
+              <input type="number" placeholder="$ Monto por cuota" value={nuevoConsumo.montoCuota} onChange={e => setNuevoConsumo({ ...nuevoConsumo, montoCuota: e.target.value })} style={{ ...styles.inputFlex, maxWidth: '140px' }} />
+              <button type="submit" style={styles.btnBlue}>+ Cargar Consumo</button>
+            </div>
+          </form>
+        </div>
+
+        <div style={{ ...styles.grid3Col, marginTop: '15px' }}>
+          <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
+            <h4>💳 Crear Nueva Tarjeta</h4>
+            <select value={nuevaTarjeta.persona} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, persona: e.target.value })} style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
+              <option value="Catriel">Para Catriel</option>
+              <option value="Lisandro">Para Lisandro</option>
+            </select>
+            <input type="text" placeholder="Nombre (ej. NACION - VISA)" value={nuevaTarjeta.nombre} onChange={e => setNuevaTarjeta({ ...nuevaTarjeta, nombre: e.target.value })} style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
+            <button type="submit" style={{ ...styles.btnBlue, width: '100%', marginTop: '8px' }}>+ Crear Tarjeta</button>
+          </form>
+
+          <div style={styles.cardWhite}>
+            <h4>➕ Cargar Nuevo Ingreso</h4>
+            <select style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
+              <option>Para Catriel</option>
+              <option>Para Lisandro</option>
+            </select>
+            <input type="text" placeholder="Descripción" style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
+          </div>
+
+          <div style={styles.cardWhite}>
+            <h4>➕ Cargar Gasto Propio</h4>
+            <select style={{ ...styles.selectStyle, width: '100%', marginTop: '8px' }}>
+              <option>De Catriel</option>
+              <option>De Lisandro</option>
+            </select>
+            <input type="text" placeholder="Descripción" style={{ ...styles.inputFlex, width: '100%', marginTop: '8px' }} />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+const styles = {
+  appContainer: {
+    backgroundColor: '#f1f5f9',
+    minHeight: '100vh',
+    padding: '20px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    color: '#334155',
+  },
+  topHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: '16px 24px',
+    borderRadius: '16px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+    marginBottom: '20px',
+  },
+  title: { fontSize: '20px', margin: 0, color: '#0f172a' },
+  subtitle: { fontSize: '12px', color: '#64748b', margin: '4px 0 0 0' },
+  periodSelector: { backgroundColor: '#f8fafc', padding: '8px 14px', borderRadius: '8px', border: '1px solid #e2e8f0' },
+  inputMonth: { border: 'none', background: 'transparent', marginLeft: '6px', fontWeight: 'bold' },
+  mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '16px' },
+  
+  // Columna Azul
+  columnBlue: { backgroundColor: '#e0f2fe', borderRadius: '16px', padding: '16px', border: '1px solid #38bdf8' },
+  headerBlue: { color: '#0369a1', marginBottom: '12px' },
+  subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
+  boxLightBlue: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #bae6fd' },
+  cardItemBlue: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #bae6fd' },
+
+  // Columna Amarilla
+  columnYellow: { backgroundColor: '#fef9c3', borderRadius: '16px', padding: '16px', border: '1px solid #fde047' },
+  headerYellow: { color: '#a16207', marginBottom: '12px' },
+  tableYellow: { width: '100%', borderCollapse: 'collapse', fontSize: '14px' },
+  summaryYellowBox: { backgroundColor: '#fef08a', padding: '12px', borderRadius: '8px', marginTop: '12px' },
+
+  // Columna Verde
+  columnGreen: { backgroundColor: '#dcfce7', borderRadius: '16px', padding: '16px', border: '1px solid #4ade80' },
+  headerGreen: { color: '#15803d', marginBottom: '12px' },
+  boxLightGreen: { backgroundColor: '#fff', padding: '12px
