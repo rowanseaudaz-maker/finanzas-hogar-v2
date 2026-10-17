@@ -247,7 +247,7 @@ export default function App() {
   const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
   const tarjetasParaForm = tarjetas.filter(t => t.persona === nuevoConsumo.realiza)
 
-  // Consumos Tarjetas Propios
+  // Consumos Tarjetas Propios (Solo cuando la persona paga lo suyo)
   const consumosLisandroPropio = consumosActivosMes.filter(c => {
     const perteneceALisandro = tarjLisandro.some(t => t.id === c.tarjeta_id)
     return perteneceALisandro && c.quien_paga === 'Lisandro'
@@ -272,7 +272,7 @@ export default function App() {
   const totalTarjComp = tarjCompLisandro + tarjCompCatriel
   const mitadTarjComp = totalTarjComp / 2
 
-  // CÁLCULO DE LIQUIDACIÓN DE TARJETAS COMPARTIDAS
+  // LIQUIDACIÓN DE TARJETAS COMPARTIDAS
   const diffTarjComp = tarjCompLisandro - tarjCompCatriel
   const debeMonto = Math.abs(diffTarjComp) / 2
   let quienDebeTexto = '¡Las tarjetas compartidas están 100% al día!'
@@ -282,7 +282,7 @@ export default function App() {
     quienDebeTexto = `Lisandro le debe $${debeMonto.toLocaleString()} a Catriel`
   }
 
-  // CÁLCULO DE GASTOS TOTALES Y DISPONIBLE FINAL
+  // GASTOS TOTALES Y DISPONIBLE FINAL
   const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio + totalCombLisandro
   const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio + totalCombCatriel
 
@@ -603,7 +603,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* CÁLCULO REAL DE FONDOS DEL BOLSILLO A SEPARAR POR TARJETA */}
+            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (EXCLUYE CONSUMOS DE OTROS) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
                 🏦 Plata Real a Separar del Bolsillo por Tarjeta
@@ -622,9 +622,14 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       
-                      // Si Catriel le debe netamente a Lisandro, ese neto atenúa el desembolso de esta tarjeta
-                      const compensacionNetoCatriel = (diffTarjComp > 0) ? debeMonto : 0
-                      const delBolsilloLisandro = Math.max(0, totalResumen - compensacionNetoCatriel)
+                      const propioLisandro = consumosTarjeta.filter(c => c.quien_paga === 'Lisandro').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const compLisandro = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      
+                      // Consumos prestados a terceros en esta tarjeta
+                      const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
+
+                      // Lo que realmente debe poner Lisandro de su bolsillo (su propio gasto + 50% compartido)
+                      const delBolsilloLisandro = propioLisandro + (compLisandro / 2)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
@@ -635,9 +640,11 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Lisandro pone del bolsillo: ${delBolsilloLisandro.toLocaleString()}
                           </div>
-                          <div style={{ fontSize: '10px', color: '#64748b' }}>
-                            (Recibe compensación neta de Catriel: ${compensacionNetoCatriel.toLocaleString()})
-                          </div>
+                          {consumosOtros.map(o => (
+                            <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
+                              👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
+                            </div>
+                          ))}
                         </div>
                       )
                     })
@@ -656,9 +663,14 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       
-                      // Si Lisandro le debe netamente a Catriel, ese neto atenúa el desembolso de esta tarjeta
-                      const compensacionNetoLisandro = (diffTarjComp < 0) ? debeMonto : 0
-                      const delBolsilloCatriel = Math.max(0, totalResumen - compensacionNetoLisandro)
+                      const propioCatriel = consumosTarjeta.filter(c => c.quien_paga === 'Catriel').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const compCatriel = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      
+                      // Consumos prestados a terceros en esta tarjeta
+                      const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
+
+                      // Lo que realmente debe poner Catriel de su bolsillo (su propio gasto + 50% compartido)
+                      const delBolsilloCatriel = propioCatriel + (compCatriel / 2)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
@@ -669,9 +681,11 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Catriel pone del bolsillo: ${delBolsilloCatriel.toLocaleString()}
                           </div>
-                          <div style={{ fontSize: '10px', color: '#64748b' }}>
-                            (Recibe compensación neta de Lisandro: ${compensacionNetoLisandro.toLocaleString()})
-                          </div>
+                          {consumosOtros.map(o => (
+                            <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
+                              👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
+                            </div>
+                          ))}
                         </div>
                       )
                     })
@@ -1030,60 +1044,4 @@ export default function App() {
 const styles = {
   appWrapper: { backgroundColor: '#f1f5f9', minHeight: '100vh', display: 'flex', justifyContent: 'center', padding: '16px 10px' },
   appContainer: { maxWidth: '1280px', width: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: '#334155' },
-  topHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', marginBottom: '14px' },
-  title: { fontSize: '18px', margin: 0, color: '#0f172a' },
-  subtitle: { fontSize: '12px', color: '#64748b', margin: '2px 0 0 0' },
-  periodSelector: { backgroundColor: '#f8fafc', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13px' },
-  inputMonth: { border: 'none', background: 'transparent', marginLeft: '6px', fontWeight: 'bold' },
-  mainGrid: { display: 'grid', gridTemplateColumns: '1fr 1.15fr 1fr', gap: '12px' },
-  columnBlue: { backgroundColor: '#e0f2fe', borderRadius: '14px', padding: '12px', border: '1px solid #38bdf8' },
-  headerBlue: { color: '#0369a1', marginBottom: '8px', fontSize: '14px' },
-  subGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' },
-  boxLightBlue: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #bae6fd' },
-  cardItemBlue: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #0284c7' },
-  columnYellow: { backgroundColor: '#fef9c3', borderRadius: '14px', padding: '12px', border: '1px solid #fde047' },
-  headerYellow: { color: '#a16207', marginBottom: '8px', fontSize: '14px' },
-  tableYellowColumna: { width: '100%', borderCollapse: 'collapse', fontSize: '11px', backgroundColor: '#fff', borderRadius: '6px' },
-  summaryYellowBox: { backgroundColor: '#fef08a', padding: '8px', borderRadius: '6px', marginTop: '8px', fontSize: '12px' },
-  columnGreen: { backgroundColor: '#dcfce7', borderRadius: '14px', padding: '12px', border: '1px solid #4ade80' },
-  headerGreen: { color: '#15803d', marginBottom: '8px', fontSize: '14px' },
-  boxLightGreen: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #bbf7d0' },
-  cardItemGreen: { backgroundColor: '#fff', padding: '10px', borderRadius: '8px', marginTop: '8px', border: '1px solid #16a34a' },
-  boxTitle: { fontSize: '10px', fontWeight: 'bold', color: '#64748b' },
-  totText: { fontSize: '12px', fontWeight: 'bold', margin: '2px 0 4px 0' },
-  montoText: { fontSize: '15px', fontWeight: 'bold', margin: '2px 0' },
-  inputMini: { width: '100%', padding: '2px 4px', fontSize: '10px', borderRadius: '4px', border: '1px solid #cbd5e1' },
-  cardGroupTitle: { fontSize: '12px', fontWeight: 'bold', color: '#0369a1', marginTop: '12px' },
-  cardGroupTitleGreen: { fontSize: '12px', fontWeight: 'bold', color: '#15803d', marginTop: '12px' },
-  emptyText: { fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', margin: '4px 0' },
-  rowFlex: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  rowFlexTableHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#0284c7', color: '#fff', padding: '6px 8px', borderRadius: '4px 4px 0 0', fontSize: '12px' },
-  rowFlexCargo: { display: 'flex', justifyContent: 'space-between', fontSize: '11px', padding: '3px 0' },
-  btnIcon: { background: 'none', border: 'none', cursor: 'pointer', marginLeft: '2px', fontSize: '11px' },
-  btnBadge: { border: 'none', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', fontWeight: 'bold' },
-  btnBadgeMini: { border: 'none', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontSize: '9px', cursor: 'pointer', fontWeight: 'bold' },
-  inputFlex: { padding: '6px 8px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', flex: 1 },
-  btnOrange: { backgroundColor: '#d97706', color: '#fff', border: 'none', padding: '6px 10px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' },
-  bottomSection: { marginTop: '14px' },
-  grid2Col: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' },
-  grid3Col: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' },
-  cardWhite: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' },
-  boxCargoJustoBlue: { backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', padding: '8px', borderRadius: '6px' },
-  boxCargoJustoGreen: { backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px', borderRadius: '6px' },
-  boxMiniOrange: { backgroundColor: '#ffedd5', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', width: '48%' },
-  balanceNetoCard: { backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid #0f172a' },
-  balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
-  balanceColGreen: { backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', width: '48%' },
-  statusBoxDeuda: { backgroundColor: '#fff', padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '8px', textAlign: 'center' },
-  selectStyle: { padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px' },
-  selectFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#fff', fontSize: '12px', marginTop: '2px' },
-  inputFull: { width: '100%', padding: '6px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', marginTop: '2px', boxSizing: 'border-box' },
-  btnBlueFull: { width: '100%', backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '6px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', marginTop: '6px' },
-  formTitle: { fontSize: '12px', margin: '0 0 4px 0', color: '#1e293b' },
-  itemDesglosado: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginTop: '4px', backgroundColor: '#f8fafc', padding: '4px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' },
-  labelMini: { fontSize: '10px', fontWeight: 'bold', color: '#475569', display: 'block' },
-  infoRowLightBlue: { backgroundColor: '#e0f2fe', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px' },
-  infoRowLightGreen: { backgroundColor: '#dcfce7', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px' },
-  infoRowLightYellow: { backgroundColor: '#fef08a', padding: '6px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginTop: '4px' },
-  tableTarjeta: { width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '4px', backgroundColor: '#fff' }
-}
+  topHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '12px 20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba
