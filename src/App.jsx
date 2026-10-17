@@ -247,7 +247,7 @@ export default function App() {
   const tarjCatriel = tarjetas.filter(t => t.persona === 'Catriel')
   const tarjetasParaForm = tarjetas.filter(t => t.persona === nuevoConsumo.realiza)
 
-  // Consumos Tarjetas Propios (Solo cuando la persona paga lo suyo)
+  // Consumos Tarjetas Propios
   const consumosLisandroPropio = consumosActivosMes.filter(c => {
     const perteneceALisandro = tarjLisandro.some(t => t.id === c.tarjeta_id)
     return perteneceALisandro && c.quien_paga === 'Lisandro'
@@ -603,7 +603,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (EXCLUYE CONSUMOS DE OTROS) */}
+            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (CÁLCULO EXACTO DE LIQUIDEZ) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
                 🏦 Plata Real a Separar del Bolsillo por Tarjeta
@@ -622,14 +622,14 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       
-                      const propioLisandro = consumosTarjeta.filter(c => c.quien_paga === 'Lisandro').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       const compLisandro = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const aportaCatrielTarjeta = compLisandro / 2
                       
                       // Consumos prestados a terceros en esta tarjeta
                       const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
 
-                      // Lo que realmente debe poner Lisandro de su bolsillo (su propio gasto + 50% compartido)
-                      const delBolsilloLisandro = propioLisandro + (compLisandro / 2)
+                      // Lo que Lisandro pone de su sueldo/bolsillo para que el banco debite el 100%
+                      const delBolsilloLisandro = totalResumen - aportaCatrielTarjeta
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
@@ -640,6 +640,11 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Lisandro pone del bolsillo: ${delBolsilloLisandro.toLocaleString()}
                           </div>
+                          {aportaCatrielTarjeta > 0 && (
+                            <div style={{ fontSize: '10px', color: '#475569' }}>
+                              (Aporte de Catriel por esta tarjeta: ${aportaCatrielTarjeta.toLocaleString()})
+                            </div>
+                          )}
                           {consumosOtros.map(o => (
                             <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
                               👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
@@ -663,14 +668,14 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       
-                      const propioCatriel = consumosTarjeta.filter(c => c.quien_paga === 'Catriel').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       const compCatriel = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+                      const aportaLisandroTarjeta = compCatriel / 2
                       
                       // Consumos prestados a terceros en esta tarjeta
                       const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
 
-                      // Lo que realmente debe poner Catriel de su bolsillo (su propio gasto + 50% compartido)
-                      const delBolsilloCatriel = propioCatriel + (compCatriel / 2)
+                      // Lo que Catriel pone de su sueldo/bolsillo para que el banco debite el 100%
+                      const delBolsilloCatriel = totalResumen - aportaLisandroTarjeta
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
@@ -681,6 +686,11 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Catriel pone del bolsillo: ${delBolsilloCatriel.toLocaleString()}
                           </div>
+                          {aportaLisandroTarjeta > 0 && (
+                            <div style={{ fontSize: '10px', color: '#475569' }}>
+                              (Aporte de Lisandro por esta tarjeta: ${aportaLisandroTarjeta.toLocaleString()})
+                            </div>
+                          )}
                           {consumosOtros.map(o => (
                             <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
                               👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
