@@ -603,7 +603,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (COMPENSACIÓN REAL DE LIQUIDEZ) */}
+            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (EXCLUYENDO TERCEROS) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
                 🏦 Plata Real a Separar del Bolsillo por Tarjeta
@@ -621,11 +621,15 @@ export default function App() {
                     tarjLisandro.map((t, idx) => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
                       
-                      // Cálculo del desembolso propio descontando la liquidación neta si le toca recibirla
+                      // Sumar lo que deben terceros en esta tarjeta
+                      const totalOtros = consumosTarjeta
+                        .filter(c => c.quien_paga.startsWith('Otro'))
+                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
                       const netoRecibeLisandro = (diffTarjComp > 0 && idx === 0) ? debeMonto : 0
-                      const delBolsilloLisandro = Math.max(0, totalResumen - netoRecibeLisandro)
+                      // Se descuenta lo de terceros porque lo pagan ellos aparte
+                      const delBolsilloLisandro = Math.max(0, totalResumen - netoRecibeLisandro - totalOtros)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
@@ -641,7 +645,7 @@ export default function App() {
                               (Catriel le transfiere en mano: ${netoRecibeLisandro.toLocaleString()})
                             </div>
                           )}
-                          {consumosOtros.map(o => (
+                          {consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro')).map(o => (
                             <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
                               👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
                             </div>
@@ -663,11 +667,15 @@ export default function App() {
                     tarjCatriel.map((t, idx) => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
 
-                      // Se aplica la transferencia de Lisandro a la tarjeta con saldo de Catriel
+                      // Sumar lo que deben terceros en esta tarjeta
+                      const totalOtros = consumosTarjeta
+                        .filter(c => c.quien_paga.startsWith('Otro'))
+                        .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+
                       const netoRecibeCatriel = (diffTarjComp < 0 && idx === 0) ? debeMonto : 0
-                      const delBolsilloCatriel = Math.max(0, totalResumen - netoRecibeCatriel)
+                      // Se descuenta lo de terceros porque lo pagan ellos aparte
+                      const delBolsilloCatriel = Math.max(0, totalResumen - netoRecibeCatriel - totalOtros)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
@@ -683,7 +691,7 @@ export default function App() {
                               (Lisandro le transfiere en mano: ${netoRecibeCatriel.toLocaleString()})
                             </div>
                           )}
-                          {consumosOtros.map(o => (
+                          {consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro')).map(o => (
                             <div key={o.id} style={{ fontSize: '10px', color: '#d97706', marginTop: '1px', fontWeight: 'bold' }}>
                               👤 {o.quien_paga.replace('Otro (', '').replace(')', '').toUpperCase()} te debe: ${Number(o.monto_cuota).toLocaleString()}
                             </div>
