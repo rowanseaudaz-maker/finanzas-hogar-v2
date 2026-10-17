@@ -272,7 +272,7 @@ export default function App() {
   const totalTarjComp = tarjCompLisandro + tarjCompCatriel
   const mitadTarjComp = totalTarjComp / 2
 
-  // LIQUIDACIÓN DE TARJETAS COMPARTIDAS
+  // LIQUIDACIÓN DE TARJETAS COMPARTIDAS (NETO DE TRANSFERENCIA)
   const diffTarjComp = tarjCompLisandro - tarjCompCatriel
   const debeMonto = Math.abs(diffTarjComp) / 2
   let quienDebeTexto = '¡Las tarjetas compartidas están 100% al día!'
@@ -603,7 +603,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (CÁLCULO EXACTO DE LIQUIDEZ) */}
+            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (COMPENSACIÓN REAL DE LIQUIDEZ) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
                 🏦 Plata Real a Separar del Bolsillo por Tarjeta
@@ -618,18 +618,14 @@ export default function App() {
                   {tarjLisandro.length === 0 ? (
                     <p style={styles.emptyText}>Sin tarjetas</p>
                   ) : (
-                    tarjLisandro.map(t => {
+                    tarjLisandro.map((t, idx) => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      
-                      const compLisandro = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const aportaCatrielTarjeta = compLisandro / 2
-                      
-                      // Consumos prestados a terceros en esta tarjeta
                       const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
-
-                      // Lo que Lisandro pone de su sueldo/bolsillo para que el banco debite el 100%
-                      const delBolsilloLisandro = totalResumen - aportaCatrielTarjeta
+                      
+                      // Cálculo del desembolso propio descontando la liquidación neta si le toca recibirla
+                      const netoRecibeLisandro = (diffTarjComp > 0 && idx === 0) ? debeMonto : 0
+                      const delBolsilloLisandro = Math.max(0, totalResumen - netoRecibeLisandro)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bae6fd', paddingBottom: '4px' }}>
@@ -640,9 +636,9 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#0284c7', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Lisandro pone del bolsillo: ${delBolsilloLisandro.toLocaleString()}
                           </div>
-                          {aportaCatrielTarjeta > 0 && (
+                          {netoRecibeLisandro > 0 && (
                             <div style={{ fontSize: '10px', color: '#475569' }}>
-                              (Aporte de Catriel por esta tarjeta: ${aportaCatrielTarjeta.toLocaleString()})
+                              (Catriel le transfiere en mano: ${netoRecibeLisandro.toLocaleString()})
                             </div>
                           )}
                           {consumosOtros.map(o => (
@@ -664,18 +660,14 @@ export default function App() {
                   {tarjCatriel.length === 0 ? (
                     <p style={styles.emptyText}>Sin tarjetas</p>
                   ) : (
-                    tarjCatriel.map(t => {
+                    tarjCatriel.map((t, idx) => {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      
-                      const compCatriel = consumosTarjeta.filter(c => c.quien_paga === 'Compartido').reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-                      const aportaLisandroTarjeta = compCatriel / 2
-                      
-                      // Consumos prestados a terceros en esta tarjeta
                       const consumosOtros = consumosTarjeta.filter(c => c.quien_paga.startsWith('Otro'))
 
-                      // Lo que Catriel pone de su sueldo/bolsillo para que el banco debite el 100%
-                      const delBolsilloCatriel = totalResumen - aportaLisandroTarjeta
+                      // Se aplica la transferencia de Lisandro a la tarjeta con saldo de Catriel
+                      const netoRecibeCatriel = (diffTarjComp < 0 && idx === 0) ? debeMonto : 0
+                      const delBolsilloCatriel = Math.max(0, totalResumen - netoRecibeCatriel)
 
                       return (
                         <div key={t.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #bbf7d0', paddingBottom: '4px' }}>
@@ -686,9 +678,9 @@ export default function App() {
                           <div style={{ fontSize: '11px', color: '#16a34a', marginTop: '2px', fontWeight: 'bold' }}>
                             👉 Catriel pone del bolsillo: ${delBolsilloCatriel.toLocaleString()}
                           </div>
-                          {aportaLisandroTarjeta > 0 && (
+                          {netoRecibeCatriel > 0 && (
                             <div style={{ fontSize: '10px', color: '#475569' }}>
-                              (Aporte de Lisandro por esta tarjeta: ${aportaLisandroTarjeta.toLocaleString()})
+                              (Lisandro le transfiere en mano: ${netoRecibeCatriel.toLocaleString()})
                             </div>
                           )}
                           {consumosOtros.map(o => (
