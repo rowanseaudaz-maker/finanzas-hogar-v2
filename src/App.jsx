@@ -12,7 +12,6 @@ export default function App() {
   const [gastosCompartidos, setGastosCompartidos] = useState([])
   const [tarjetas, setTarjetas] = useState([])
   const [consumosTarjetas, setConsumosTarjetas] = useState([])
-  const [combustibleManual, setCombustibleManual] = useState([])
   const [pagosEstado, setPagosEstado] = useState({})
 
   // FORMULARIOS
@@ -20,7 +19,6 @@ export default function App() {
   const [nuevoIngreso, setNuevoIngreso] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevoGastoPropio, setNuevoGastoPropio] = useState({ persona: 'Catriel', descripcion: '', monto: '' })
   const [nuevaTarjeta, setNuevaTarjeta] = useState({ persona: 'Catriel', nombre: '' })
-  const [nuevoCombustible, setNuevoCombustible] = useState({ persona: 'Catriel', monto: '' })
   
   // CONSUMO TARJETA
   const [nuevoConsumo, setNuevoConsumo] = useState({
@@ -63,9 +61,6 @@ export default function App() {
 
       const { data: cons } = await supabase.from('consumos_tarjetas').select('*')
       setConsumosTarjetas(cons || [])
-
-      const { data: comb } = await supabase.from('combustible').select('*')
-      setCombustibleManual(comb || [])
 
       const { data: aho } = await supabase.from('ahorros').select('*')
       if (aho) {
@@ -146,11 +141,11 @@ export default function App() {
   const agregarGastoPropio = async (e) => {
     e.preventDefault()
     if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
+    // Los gastos propios ya no llevan período estricto para que se mantengan mes a mes
     await supabase.from('gastos_propios').insert([{
       persona: nuevoGastoPropio.persona,
       descripcion: nuevoGastoPropio.descripcion,
-      monto: parseFloat(nuevoGastoPropio.monto),
-      periodo
+      monto: parseFloat(nuevoGastoPropio.monto)
     }])
     setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
     cargarTodo()
@@ -187,18 +182,6 @@ export default function App() {
     cargarTodo()
   }
 
-  const agregarCombustible = async (e) => {
-    e.preventDefault()
-    if (!nuevoCombustible.monto) return
-    await supabase.from('combustible').insert([{
-      persona: nuevoCombustible.persona,
-      monto: parseFloat(nuevoCombustible.monto),
-      periodo
-    }])
-    setNuevoCombustible({ persona: nuevoCombustible.persona, monto: '' })
-    cargarTodo()
-  }
-
   const guardarAhorro = async (persona, monto) => {
     await supabase.from('ahorros').upsert([{ persona, monto: parseFloat(monto) || 0 }], { onConflict: 'persona' })
     cargarTodo()
@@ -210,7 +193,7 @@ export default function App() {
     return { ...c, cuotaCalculada: cuotaActual, activa }
   }).filter(c => c.activa)
 
-  // DETECCIÓN DE COMBUSTIBLE
+  // DETECCIÓN AUTOMÁTICA DE COMBUSTIBLE DESDE TARJETAS
   const esCombustible = (desc) => {
     const d = (desc || '').toUpperCase()
     return d.includes('YPF') || d.includes('SHELL') || d.includes('AXION')
@@ -226,21 +209,15 @@ export default function App() {
   const totalIngLisandro = ingLisandro.reduce((acc, i) => acc + Number(i.monto), 0)
   const totalIngCatriel = ingCatriel.reduce((acc, i) => acc + Number(i.monto), 0)
 
-  // Gastos Propios
-  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro' && g.periodo === periodo)
-  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel' && g.periodo === periodo)
+  // Gastos Propios (Se mantienen mes a mes)
+  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro')
+  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel')
   const totalGPropLisandro = gPropLisandro.reduce((acc, g) => acc + Number(g.monto), 0)
   const totalGPropCatriel = gPropCatriel.reduce((acc, g) => acc + Number(g.monto), 0)
 
-  // Combustible
-  const combLisandroManual = combustibleManual.filter(c => c.persona === 'Lisandro' && c.periodo === periodo).reduce((acc, c) => acc + Number(c.monto), 0)
-  const combCatrielManual = combustibleManual.filter(c => c.persona === 'Catriel' && c.periodo === periodo).reduce((acc, c) => acc + Number(c.monto), 0)
-
-  const combLisandroAuto = consumosActivosMes.filter(c => c.realiza === 'Lisandro' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-  const combCatrielAuto = consumosActivosMes.filter(c => c.realiza === 'Catriel' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-
-  const totalCombLisandro = combLisandroManual + combLisandroAuto
-  const totalCombCatriel = combCatrielManual + combCatrielAuto
+  // Combustible automático detectado de tarjetas
+  const totalCombLisandro = consumosActivosMes.filter(c => c.realiza === 'Lisandro' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
+  const totalCombCatriel = consumosActivosMes.filter(c => c.realiza === 'Catriel' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
   // Tarjetas
   const tarjLisandro = tarjetas.filter(t => t.persona === 'Lisandro')
@@ -347,9 +324,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS LISANDRO */}
+            {/* GASTOS PROPIOS LISANDRO (Fijos mes a mes) */}
             <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO (Fijos mes a mes)</span>
               {gPropLisandro.length === 0 ? (
                 <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
@@ -603,7 +580,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA (EXCLUYENDO TERCEROS) */}
+            {/* PLATA REAL A SEPARAR DEL BOLSILLO POR TARJETA */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
               <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#0f172a', fontWeight: 'bold' }}>
                 🏦 Plata Real a Separar del Bolsillo por Tarjeta
@@ -622,13 +599,11 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
                       
-                      // Sumar lo que deben terceros en esta tarjeta
                       const totalOtros = consumosTarjeta
                         .filter(c => c.quien_paga.startsWith('Otro'))
                         .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
                       const netoRecibeLisandro = (diffTarjComp > 0 && idx === 0) ? debeMonto : 0
-                      // Se descuenta lo de terceros porque lo pagan ellos aparte
                       const delBolsilloLisandro = Math.max(0, totalResumen - netoRecibeLisandro - totalOtros)
 
                       return (
@@ -668,13 +643,11 @@ export default function App() {
                       const consumosTarjeta = consumosActivosMes.filter(c => c.tarjeta_id === t.id)
                       const totalResumen = consumosTarjeta.reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
-                      // Sumar lo que deben terceros en esta tarjeta
                       const totalOtros = consumosTarjeta
                         .filter(c => c.quien_paga.startsWith('Otro'))
                         .reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
                       const netoRecibeCatriel = (diffTarjComp < 0 && idx === 0) ? debeMonto : 0
-                      // Se descuenta lo de terceros porque lo pagan ellos aparte
                       const delBolsilloCatriel = Math.max(0, totalResumen - netoRecibeCatriel - totalOtros)
 
                       return (
@@ -705,27 +678,16 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS DE COMBUSTIBLE */}
+            {/* GASTOS DE COMBUSTIBLE (Detectado automáticamente de tarjetas) */}
             <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
-              <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE</h4>
+              <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE (Automático de Tarjetas)</h4>
               <div style={styles.rowFlex}>
                 <div style={styles.boxMiniOrange}>Lisandro: <strong>${totalCombLisandro.toLocaleString()}</strong></div>
                 <div style={styles.boxMiniOrange}>Catriel: <strong>${totalCombCatriel.toLocaleString()}</strong></div>
               </div>
-              <form onSubmit={agregarCombustible} style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
-                <select value={nuevoCombustible.persona} onChange={e => setNuevoCombustible({ ...nuevoCombustible, persona: e.target.value })} style={styles.selectStyle}>
-                  <option value="Catriel">Catriel</option>
-                  <option value="Lisandro">Lisandro</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="$ Monto Adicional"
-                  value={nuevoCombustible.monto}
-                  onChange={e => setNuevoCombustible({ ...nuevoCombustible, monto: e.target.value })}
-                  style={styles.inputFlex}
-                />
-                <button type="submit" style={styles.btnOrange}>+ Cargar</button>
-              </form>
+              <p style={{ fontSize: '10px', color: '#78350f', marginTop: '6px', fontStyle: 'italic' }}>
+                💡 Detectado automáticamente de los consumos de tarjetas (YPF, Shell, Axion).
+              </p>
             </div>
 
           </div>
@@ -762,9 +724,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS CATRIEL */}
+            {/* GASTOS PROPIOS CATRIEL (Fijos mes a mes) */}
             <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL (Fijos mes a mes)</span>
               {gPropCatriel.length === 0 ? (
                 <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
@@ -997,7 +959,7 @@ export default function App() {
             </form>
 
             <form onSubmit={agregarGastoPropio} style={styles.cardWhite}>
-              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio</h4>
+              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio (Fijo)</h4>
               <select
                 value={nuevoGastoPropio.persona}
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })}
@@ -1008,7 +970,7 @@ export default function App() {
               </select>
               <input
                 type="text"
-                placeholder="Descripción"
+                placeholder="Descripción (ej. Gimnasio)"
                 value={nuevoGastoPropio.descripcion}
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, descripcion: e.target.value })}
                 style={styles.inputFull}
@@ -1020,7 +982,7 @@ export default function App() {
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })}
                 style={styles.inputFull}
               />
-              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto</button>
+              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto Fijo</button>
             </form>
 
             <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
