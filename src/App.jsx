@@ -103,10 +103,10 @@ export default function App() {
   const agregarGastoComp = async (e) => {
     e.preventDefault()
     if (!nuevoGastoComp.concepto || !nuevoGastoComp.monto) return
+    // Sin período para que se mantengan fijos mes a mes
     await supabase.from('gastos_compartidos').insert([{
       concepto: nuevoGastoComp.concepto,
-      monto: parseFloat(nuevoGastoComp.monto),
-      periodo
+      monto: parseFloat(nuevoGastoComp.monto)
     }])
     setNuevoGastoComp({ concepto: '', monto: '' })
     cargarTodo()
@@ -141,11 +141,11 @@ export default function App() {
   const agregarGastoPropio = async (e) => {
     e.preventDefault()
     if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
+    // Sin período para que se mantengan fijos mes a mes
     await supabase.from('gastos_propios').insert([{
       persona: nuevoGastoPropio.persona,
       descripcion: nuevoGastoPropio.descripcion,
-      monto: parseFloat(nuevoGastoPropio.monto),
-      periodo
+      monto: parseFloat(nuevoGastoPropio.monto)
     }])
     setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
     cargarTodo()
@@ -193,9 +193,8 @@ export default function App() {
     return { ...c, cuotaCalculada: cuotaActual, activa }
   }).filter(c => c.activa)
 
-  // CÁLCULOS GENERALES (Filtrados por período actual o sin período histórico para compatibilidad)
-  const gastosCompartidosMes = gastosCompartidos.filter(g => g.periodo === periodo || !g.periodo)
-  const totalCompartidos = gastosCompartidosMes.reduce((acc, item) => acc + Number(item.monto), 0)
+  // CÁLCULOS GENERALES (Gastos compartidos fijos para todos los meses)
+  const totalCompartidos = gastosCompartidos.reduce((acc, item) => acc + Number(item.monto), 0)
   const mitadCompartidos = totalCompartidos / 2
 
   // Ingresos
@@ -204,9 +203,9 @@ export default function App() {
   const totalIngLisandro = ingLisandro.reduce((acc, i) => acc + Number(i.monto), 0)
   const totalIngCatriel = ingCatriel.reduce((acc, i) => acc + Number(i.monto), 0)
 
-  // Gastos Propios
-  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro' && (g.periodo === periodo || !g.periodo))
-  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel' && (g.periodo === periodo || !g.periodo))
+  // Gastos Propios Fijos (Se mantienen mes a mes)
+  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro')
+  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel')
   const totalGPropLisandro = gPropLisandro.reduce((acc, g) => acc + Number(g.monto), 0)
   const totalGPropCatriel = gPropCatriel.reduce((acc, g) => acc + Number(g.monto), 0)
 
@@ -250,10 +249,11 @@ export default function App() {
     quienDebeTexto = `Lisandro le debe $${debeMonto.toLocaleString()} a Catriel`
   }
 
-  // GASTOS TOTALES (Incluyendo 50% de gastos compartidos + gastos propios + consumos propios de tarjetas)
-  const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio
-  const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio
+  // GASTOS TOTALES EXACTOS (Gastos Propios + 50% G. Compartidos + Consumos Propios Tarjetas + 50% G. Compartidos Tarjetas)
+  const gastosTotalesLisandro = totalGPropLisandro + mitadCompartidos + consumosLisandroPropio + mitadTarjComp
+  const gastosTotalesCatriel = totalGPropCatriel + mitadCompartidos + consumosCatrielPropio + mitadTarjComp
 
+  // DISPONIBLE = Ingresos - Gastos Totales - Ahorro
   const dispLisandro = totalIngLisandro - gastosTotalesLisandro - ahorros.Lisandro
   const dispCatriel = totalIngCatriel - gastosTotalesCatriel - ahorros.Catriel
 
@@ -315,11 +315,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS LISANDRO */}
+            {/* GASTOS PROPIOS LISANDRO (Fijos mes a mes) */}
             <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO ({periodo})</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO (Fijos)</span>
               {gPropLisandro.length === 0 ? (
-                <p style={styles.emptyText}>Sin gastos propios este mes</p>
+                <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
                 gPropLisandro.map(g => {
                   const pagado = estaPagadoIndividual('gpropio', g.id)
@@ -430,7 +430,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {gastosCompartidosMes.map(g => {
+                {gastosCompartidos.map(g => {
                   const montoTotal = Number(g.monto)
                   const mitad = montoTotal / 2
                   const pagadoLisandro = estaPagadoIndividual('gcomp', g.id, 'Lisandro')
@@ -491,7 +491,7 @@ export default function App() {
             <form onSubmit={agregarGastoComp} style={{ ...styles.rowFlex, gap: '4px', marginTop: '8px' }}>
               <input
                 type="text"
-                placeholder="Ej: Alquiler"
+                placeholder="Ej: Alquiler (Fijo)"
                 value={nuevoGastoComp.concepto}
                 onChange={e => setNuevoGastoComp({ ...nuevoGastoComp, concepto: e.target.value })}
                 style={styles.inputFlex}
@@ -703,11 +703,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS CATRIEL */}
+            {/* GASTOS PROPIOS CATRIEL (Fijos mes a mes) */}
             <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL ({periodo})</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL (Fijos)</span>
               {gPropCatriel.length === 0 ? (
-                <p style={styles.emptyText}>Sin gastos propios este mes</p>
+                <p style={styles.emptyText}>Sin gastos propios</p>
               ) : (
                 gPropCatriel.map(g => {
                   const pagado = estaPagadoIndividual('gpropio', g.id)
@@ -938,7 +938,7 @@ export default function App() {
             </form>
 
             <form onSubmit={agregarGastoPropio} style={styles.cardWhite}>
-              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio</h4>
+              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio (Fijo)</h4>
               <select
                 value={nuevoGastoPropio.persona}
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })}
@@ -961,7 +961,7 @@ export default function App() {
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })}
                 style={styles.inputFull}
               />
-              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto</button>
+              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto Fijo</button>
             </form>
 
             <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
