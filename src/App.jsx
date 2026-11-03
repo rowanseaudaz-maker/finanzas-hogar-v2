@@ -193,7 +193,7 @@ export default function App() {
     return { ...c, cuotaCalculada: cuotaActual, activa }
   }).filter(c => c.activa)
 
-  // CÁLCULOS GENERALES (Filtrados por período actual)
+  // CÁLCULOS GENERALES (Filtrados por período actual o sin período histórico para compatibilidad)
   const gastosCompartidosMes = gastosCompartidos.filter(g => g.periodo === periodo || !g.periodo)
   const totalCompartidos = gastosCompartidosMes.reduce((acc, item) => acc + Number(item.monto), 0)
   const mitadCompartidos = totalCompartidos / 2
