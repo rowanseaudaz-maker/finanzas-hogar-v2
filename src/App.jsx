@@ -106,7 +106,7 @@ export default function App() {
     await supabase.from('gastos_compartidos').insert([{
       concepto: nuevoGastoComp.concepto,
       monto: parseFloat(nuevoGastoComp.monto),
-      periodo: 'fijo'
+      periodo
     }])
     setNuevoGastoComp({ concepto: '', monto: '' })
     cargarTodo()
@@ -141,11 +141,11 @@ export default function App() {
   const agregarGastoPropio = async (e) => {
     e.preventDefault()
     if (!nuevoGastoPropio.descripcion || !nuevoGastoPropio.monto) return
-    // Los gastos propios ya no llevan período estricto para que se mantengan mes a mes
     await supabase.from('gastos_propios').insert([{
       persona: nuevoGastoPropio.persona,
       descripcion: nuevoGastoPropio.descripcion,
-      monto: parseFloat(nuevoGastoPropio.monto)
+      monto: parseFloat(nuevoGastoPropio.monto),
+      periodo
     }])
     setNuevoGastoPropio({ persona: nuevoGastoPropio.persona, descripcion: '', monto: '' })
     cargarTodo()
@@ -193,14 +193,9 @@ export default function App() {
     return { ...c, cuotaCalculada: cuotaActual, activa }
   }).filter(c => c.activa)
 
-  // DETECCIÓN AUTOMÁTICA DE COMBUSTIBLE DESDE TARJETAS
-  const esCombustible = (desc) => {
-    const d = (desc || '').toUpperCase()
-    return d.includes('YPF') || d.includes('SHELL') || d.includes('AXION')
-  }
-
-  // CÁLCULOS GENERALES
-  const totalCompartidos = gastosCompartidos.reduce((acc, item) => acc + Number(item.monto), 0)
+  // CÁLCULOS GENERALES (Filtrados por período actual)
+  const gastosCompartidosMes = gastosCompartidos.filter(g => g.periodo === periodo || !g.periodo)
+  const totalCompartidos = gastosCompartidosMes.reduce((acc, item) => acc + Number(item.monto), 0)
   const mitadCompartidos = totalCompartidos / 2
 
   // Ingresos
@@ -209,15 +204,11 @@ export default function App() {
   const totalIngLisandro = ingLisandro.reduce((acc, i) => acc + Number(i.monto), 0)
   const totalIngCatriel = ingCatriel.reduce((acc, i) => acc + Number(i.monto), 0)
 
-  // Gastos Propios (Se mantienen mes a mes)
-  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro')
-  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel')
+  // Gastos Propios
+  const gPropLisandro = gastosPropios.filter(g => g.persona === 'Lisandro' && (g.periodo === periodo || !g.periodo))
+  const gPropCatriel = gastosPropios.filter(g => g.persona === 'Catriel' && (g.periodo === periodo || !g.periodo))
   const totalGPropLisandro = gPropLisandro.reduce((acc, g) => acc + Number(g.monto), 0)
   const totalGPropCatriel = gPropCatriel.reduce((acc, g) => acc + Number(g.monto), 0)
-
-  // Combustible automático detectado de tarjetas
-  const totalCombLisandro = consumosActivosMes.filter(c => c.realiza === 'Lisandro' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
-  const totalCombCatriel = consumosActivosMes.filter(c => c.realiza === 'Catriel' && esCombustible(c.descripcion)).reduce((acc, c) => acc + Number(c.monto_cuota), 0)
 
   // Tarjetas
   const tarjLisandro = tarjetas.filter(t => t.persona === 'Lisandro')
@@ -259,9 +250,9 @@ export default function App() {
     quienDebeTexto = `Lisandro le debe $${debeMonto.toLocaleString()} a Catriel`
   }
 
-  // GASTOS TOTALES Y DISPONIBLE FINAL
-  const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio + totalCombLisandro
-  const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio + totalCombCatriel
+  // GASTOS TOTALES (Incluyendo 50% de gastos compartidos + gastos propios + consumos propios de tarjetas)
+  const gastosTotalesLisandro = mitadCompartidos + totalGPropLisandro + consumosLisandroPropio
+  const gastosTotalesCatriel = mitadCompartidos + totalGPropCatriel + consumosCatrielPropio
 
   const dispLisandro = totalIngLisandro - gastosTotalesLisandro - ahorros.Lisandro
   const dispCatriel = totalIngCatriel - gastosTotalesCatriel - ahorros.Catriel
@@ -324,11 +315,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS LISANDRO (Fijos mes a mes) */}
+            {/* GASTOS PROPIOS LISANDRO */}
             <div style={{ ...styles.boxLightBlue, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO (Fijos mes a mes)</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS LISANDRO ({periodo})</span>
               {gPropLisandro.length === 0 ? (
-                <p style={styles.emptyText}>Sin gastos propios</p>
+                <p style={styles.emptyText}>Sin gastos propios este mes</p>
               ) : (
                 gPropLisandro.map(g => {
                   const pagado = estaPagadoIndividual('gpropio', g.id)
@@ -439,7 +430,7 @@ export default function App() {
                 </tr>
               </thead>
               <tbody>
-                {gastosCompartidos.map(g => {
+                {gastosCompartidosMes.map(g => {
                   const montoTotal = Number(g.monto)
                   const mitad = montoTotal / 2
                   const pagadoLisandro = estaPagadoIndividual('gcomp', g.id, 'Lisandro')
@@ -500,7 +491,7 @@ export default function App() {
             <form onSubmit={agregarGastoComp} style={{ ...styles.rowFlex, gap: '4px', marginTop: '8px' }}>
               <input
                 type="text"
-                placeholder="Ej: Alquiler (Fijo)"
+                placeholder="Ej: Alquiler"
                 value={nuevoGastoComp.concepto}
                 onChange={e => setNuevoGastoComp({ ...nuevoGastoComp, concepto: e.target.value })}
                 style={styles.inputFlex}
@@ -678,18 +669,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS DE COMBUSTIBLE (Detectado automáticamente de tarjetas) */}
-            <div style={{ marginTop: '16px', borderTop: '1px solid #fde047', paddingTop: '10px' }}>
-              <h4 style={{ color: '#c2410c', margin: '0 0 6px 0', fontSize: '13px' }}>⛽ GASTOS DE COMBUSTIBLE (Automático de Tarjetas)</h4>
-              <div style={styles.rowFlex}>
-                <div style={styles.boxMiniOrange}>Lisandro: <strong>${totalCombLisandro.toLocaleString()}</strong></div>
-                <div style={styles.boxMiniOrange}>Catriel: <strong>${totalCombCatriel.toLocaleString()}</strong></div>
-              </div>
-              <p style={{ fontSize: '10px', color: '#78350f', marginTop: '6px', fontStyle: 'italic' }}>
-                💡 Detectado automáticamente de los consumos de tarjetas (YPF, Shell, Axion).
-              </p>
-            </div>
-
           </div>
 
           {/* COLUMNA CATRIEL */}
@@ -724,11 +703,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* GASTOS PROPIOS CATRIEL (Fijos mes a mes) */}
+            {/* GASTOS PROPIOS CATRIEL */}
             <div style={{ ...styles.boxLightGreen, marginTop: '8px' }}>
-              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL (Fijos mes a mes)</span>
+              <span style={styles.boxTitle}>GASTOS PROPIOS CATRIEL ({periodo})</span>
               {gPropCatriel.length === 0 ? (
-                <p style={styles.emptyText}>Sin gastos propios</p>
+                <p style={styles.emptyText}>Sin gastos propios este mes</p>
               ) : (
                 gPropCatriel.map(g => {
                   const pagado = estaPagadoIndividual('gpropio', g.id)
@@ -959,7 +938,7 @@ export default function App() {
             </form>
 
             <form onSubmit={agregarGastoPropio} style={styles.cardWhite}>
-              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio (Fijo)</h4>
+              <h4 style={styles.formTitle}>➕ Cargar Gasto Propio</h4>
               <select
                 value={nuevoGastoPropio.persona}
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, persona: e.target.value })}
@@ -982,7 +961,7 @@ export default function App() {
                 onChange={e => setNuevoGastoPropio({ ...nuevoGastoPropio, monto: e.target.value })}
                 style={styles.inputFull}
               />
-              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto Fijo</button>
+              <button type="submit" style={styles.btnBlueFull}>+ Guardar Gasto</button>
             </form>
 
             <form onSubmit={agregarTarjeta} style={styles.cardWhite}>
@@ -1056,7 +1035,6 @@ const styles = {
   cardWhite: { backgroundColor: '#fff', padding: '12px', borderRadius: '10px', border: '1px solid #e2e8f0' },
   boxCargoJustoBlue: { backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', padding: '8px', borderRadius: '6px' },
   boxCargoJustoGreen: { backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px', borderRadius: '6px' },
-  boxMiniOrange: { backgroundColor: '#ffedd5', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', width: '48%' },
   balanceNetoCard: { backgroundColor: '#fff', padding: '12px', borderRadius: '12px', border: '1.5px solid #0f172a' },
   balanceColBlue: { backgroundColor: '#f0f9ff', padding: '8px', borderRadius: '6px', width: '48%' },
   balanceColGreen: { backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', width: '48%' },
